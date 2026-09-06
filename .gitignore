@@ -1,6 +1,6 @@
 # Local-only Claude Code ground rules and settings (never push)
 CLAUDE.local.md
-.claude/settings.local.json
+.claude/
 
 # Secrets
 .env
