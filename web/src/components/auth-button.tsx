@@ -11,7 +11,7 @@ export function AuthButton() {
   const pathname = usePathname();
   const { login } = useLogin({
     onComplete: () => {
-      if (pathname === "/") router.push("/categories");
+      if (pathname === "/") router.push("/agents");
     },
   });
 
