@@ -134,6 +134,9 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@next/env':
+        specifier: ^16.3.4
+        version: 16.3.4
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
