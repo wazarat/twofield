@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/wordmark";
+import { AuthButton } from "@/components/auth-button";
 
 export function Nav() {
   return (
@@ -14,12 +15,7 @@ export function Nav() {
             How it works
           </Link>
         </nav>
-        <Link
-          href="/categories"
-          className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-white transition hover:bg-ink/85"
-        >
-          Sign in
-        </Link>
+        <AuthButton />
       </div>
     </header>
   );

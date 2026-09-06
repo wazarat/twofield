@@ -3,6 +3,7 @@ import { DM_Mono, Jost, Plus_Jakarta_Sans, Space_Grotesk } from "next/font/googl
 import "./globals.css";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
+import { Providers } from "@/components/providers";
 
 const grotesk = Space_Grotesk({
   variable: "--font-grotesk",
@@ -41,9 +42,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${grotesk.variable} ${jakarta.variable} ${dmMono.variable} ${jost.variable} h-full`}
     >
       <body className="flex min-h-full flex-col">
-        <Nav />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <Providers>
+          <Nav />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

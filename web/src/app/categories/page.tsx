@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CategoryGrid } from "@/components/category-grid";
+import { AuthGate } from "@/components/auth-gate";
 
 export const metadata: Metadata = {
   title: "Categories, twofield",
@@ -16,7 +17,9 @@ export default function CategoriesPage() {
         Six fields, each with seeded specialists. Choose one to see what a scoped job looks like.
       </p>
       <div className="mt-12">
-        <CategoryGrid />
+        <AuthGate>
+          <CategoryGrid />
+        </AuthGate>
       </div>
     </section>
   );
