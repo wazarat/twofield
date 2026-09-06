@@ -8,6 +8,13 @@
       "when": 1788681907403,
       "tag": "0000_tranquil_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788684311247,
+      "tag": "0001_rare_corsair",
+      "breakpoints": true
     }
   ]
 }

@@ -6,15 +6,24 @@ import type { Agent } from "@/db/schema";
 import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
 import { StatusPill } from "@/components/status-pill";
+import { WalletPanel } from "@/components/wallet-panel";
 
 export function AgentDetail({ id }: { id: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     api<{ agent: Agent }>(`/api/agents/${id}`)
-      .then((data) => setAgent(data.agent))
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load agent"));
+      .then((data) => {
+        if (active) setAgent(data.agent);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Could not load agent");
+      });
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   if (error) {
@@ -34,10 +43,10 @@ export function AgentDetail({ id }: { id: string }) {
 
   const created = new Date(agent.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-  const steps = [
-    { label: "Created", value: created, done: true },
-    { label: "Wallet", value: agent.walletAddress ?? "Next milestone", done: Boolean(agent.walletAddress) },
-    { label: "Identity", value: agent.onchainAgentId ? `ERC-8004 id ${agent.onchainAgentId}` : "Next milestone", done: Boolean(agent.onchainAgentId) },
+  const budgets = [
+    { label: "Max per job", value: formatUsdc(agent.maxBudgetPerJob) },
+    { label: "Max jobs", value: String(agent.maxJobs) },
+    { label: "Max total", value: formatUsdc(agent.maxTotalBudget) },
   ];
 
   return (
@@ -52,22 +61,40 @@ export function AgentDetail({ id }: { id: string }) {
         <div className="rounded-panel border border-line bg-card p-8">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Setup</p>
           <ol className="mt-6 divide-y divide-line">
-            {steps.map((step, i) => (
-              <li key={step.label} className="flex items-center justify-between gap-6 py-4">
-                <div className="flex items-center gap-4">
-                  <span className={`font-mono text-sm ${step.done ? "text-ink" : "text-ink-faint"}`}>0{i + 1}</span>
-                  <span className="font-display text-lg font-medium tracking-[-0.02em]">{step.label}</span>
-                </div>
-                <span className={`truncate font-mono text-xs ${step.done ? "text-ink" : "text-ink-faint"}`}>{step.value}</span>
-              </li>
-            ))}
+            <li className="flex items-center justify-between gap-6 py-4">
+              <div className="flex items-center gap-4">
+                <span className="font-mono text-sm text-ink">01</span>
+                <span className="font-display text-lg font-medium tracking-[-0.02em]">Created</span>
+              </div>
+              <span className="font-mono text-xs text-ink">{created}</span>
+            </li>
+            <li className="py-4">
+              <WalletPanel agent={agent} onUpdated={setAgent} />
+            </li>
+            <li className="flex items-center justify-between gap-6 py-4">
+              <div className="flex items-center gap-4">
+                <span className={`font-mono text-sm ${agent.onchainAgentId ? "text-ink" : "text-ink-faint"}`}>03</span>
+                <span className="font-display text-lg font-medium tracking-[-0.02em]">Identity</span>
+              </div>
+              <span className={`font-mono text-xs ${agent.onchainAgentId ? "text-ink" : "text-ink-faint"}`}>
+                {agent.onchainAgentId ? `ERC-8004 id ${agent.onchainAgentId}` : "Next milestone"}
+              </span>
+            </li>
           </ol>
         </div>
         <div className="rounded-panel border border-line bg-card p-8">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Budget per job</p>
-          <p className="mt-4 font-display text-3xl font-medium tracking-[-0.03em]">{formatUsdc(agent.budgetPerJob)}</p>
-          <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-            The most this agent may commit to a single specialist job. Enforced by its wallet policy once the wallet exists.
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Budgets</p>
+          <dl className="mt-4 divide-y divide-line">
+            {budgets.map((b) => (
+              <div key={b.label} className="flex items-baseline justify-between py-3">
+                <dt className="text-sm text-ink-muted">{b.label}</dt>
+                <dd className="font-display text-xl font-medium tracking-[-0.02em]">{b.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+            The per job cap is enforced by the wallet policy. The total is what the wallet is funded with. Locked once
+            the wallet exists.
           </p>
         </div>
       </div>

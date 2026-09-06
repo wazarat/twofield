@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Agent } from "@/db/schema";
-import { formatUsdc } from "@/lib/agents";
+import { budgetSummary } from "@/lib/agents";
 import { StatusPill } from "@/components/status-pill";
 
 export function AgentCard({ agent }: { agent: Agent }) {
@@ -14,7 +14,7 @@ export function AgentCard({ agent }: { agent: Agent }) {
         <StatusPill status={agent.status} />
       </div>
       {agent.description ? <p className="text-sm leading-relaxed text-ink-muted">{agent.description}</p> : null}
-      <p className="font-mono text-xs text-ink-muted">Budget per job {formatUsdc(agent.budgetPerJob)}</p>
+      <p className="font-mono text-xs text-ink-muted">{budgetSummary(agent)}</p>
     </Link>
   );
 }

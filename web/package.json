@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "auth:key": "node --no-warnings scripts/generate-auth-key.ts",
+    "wallet:master": "node --no-warnings --env-file=.env.local scripts/create-master-wallet.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -18,7 +20,8 @@
     "jose": "^6.2.11",
     "next": "16.3.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "viem": "2.56.0"
   },
   "devDependencies": {
     "@next/env": "^16.3.4",

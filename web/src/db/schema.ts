@@ -1,4 +1,4 @@
-import { numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { integer, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const agentStatuses = ["draft", "wallet_ready", "registered"] as const;
 export type AgentStatus = (typeof agentStatuses)[number];
@@ -8,10 +8,14 @@ export const agents = pgTable("agents", {
   ownerId: text("owner_id").notNull(),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
-  budgetPerJob: numeric("budget_per_job", { precision: 18, scale: 6 }).notNull(),
+  maxBudgetPerJob: numeric("max_budget_per_job", { precision: 18, scale: 6 }).notNull(),
+  maxJobs: integer("max_jobs").notNull(),
+  maxTotalBudget: numeric("max_total_budget", { precision: 18, scale: 6 }).notNull(),
   status: text("status", { enum: agentStatuses }).notNull().default("draft"),
+  policyId: text("policy_id"),
   walletId: text("wallet_id"),
   walletAddress: text("wallet_address"),
+  fundingTx: text("funding_tx"),
   onchainAgentId: text("onchain_agent_id"),
   registrationTx: text("registration_tx"),
   metadataUri: text("metadata_uri"),

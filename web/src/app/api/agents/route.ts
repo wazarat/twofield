@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       ownerId: auth.userId,
       name: parsed.value.name,
       description: parsed.value.description,
-      budgetPerJob: parsed.value.budgetPerJob.toString(),
+      maxBudgetPerJob: parsed.value.maxBudgetPerJob.toString(),
+      maxJobs: parsed.value.maxJobs,
+      maxTotalBudget: parsed.value.maxTotalBudget.toString(),
     })
     .returning();
 
