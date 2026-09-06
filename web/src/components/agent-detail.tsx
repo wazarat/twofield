@@ -7,6 +7,7 @@ import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
 import { StatusPill } from "@/components/status-pill";
 import { WalletPanel } from "@/components/wallet-panel";
+import { IdentityPanel } from "@/components/identity-panel";
 
 export function AgentDetail({ id }: { id: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -71,14 +72,8 @@ export function AgentDetail({ id }: { id: string }) {
             <li className="py-4">
               <WalletPanel agent={agent} onUpdated={setAgent} />
             </li>
-            <li className="flex items-center justify-between gap-6 py-4">
-              <div className="flex items-center gap-4">
-                <span className={`font-mono text-sm ${agent.onchainAgentId ? "text-ink" : "text-ink-faint"}`}>03</span>
-                <span className="font-display text-lg font-medium tracking-[-0.02em]">Identity</span>
-              </div>
-              <span className={`font-mono text-xs ${agent.onchainAgentId ? "text-ink" : "text-ink-faint"}`}>
-                {agent.onchainAgentId ? `ERC-8004 id ${agent.onchainAgentId}` : "Next milestone"}
-              </span>
+            <li className="py-4">
+              <IdentityPanel agent={agent} onUpdated={setAgent} />
             </li>
           </ol>
         </div>

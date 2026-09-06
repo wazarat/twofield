@@ -13,17 +13,10 @@ import {
   publicClient,
   toWei,
 } from "@/lib/arc";
+import { AppError } from "@/lib/errors";
 import { authorizationContext, masterWallet, ownerPublicKey, privy } from "@/lib/privy";
 
-export class WalletError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public details?: Record<string, string>,
-  ) {
-    super(message);
-  }
-}
+export class WalletError extends AppError {}
 
 async function save(id: string, patch: Partial<Agent>) {
   const [row] = await db().update(agents).set(patch).where(eq(agents.id, id)).returning();

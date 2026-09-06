@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Agent } from "@/db/schema";
 import { formatUsdc } from "@/lib/agents";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { GAS_BUFFER_USDC, explorerAddress, explorerTx } from "@/lib/arc";
 
 type WalletFailure = { error: string; details?: Record<string, string> };
@@ -38,18 +38,15 @@ export function WalletPanel({ agent, onUpdated }: { agent: Agent; onUpdated: (ag
     setBusy(true);
     setFailure(null);
     try {
-      const res = await fetch(`/api/agents/${agent.id}/wallet`, {
-        method: "POST",
-        headers: { authorization: `Bearer ${await (await import("@privy-io/react-auth")).getAccessToken()}` },
-      });
-      const data = (await res.json()) as { agent?: Agent } & WalletFailure;
-      if (!res.ok || !data.agent) {
-        setFailure({ error: data.error ?? `Request failed with ${res.status}`, details: data.details });
+      const data = await api<{ agent?: Agent } & WalletFailure>(`/api/agents/${agent.id}/wallet`, { method: "POST" });
+      if (!data.agent) {
+        setFailure({ error: data.error ?? "Wallet creation failed", details: data.details });
         return;
       }
       onUpdated(data.agent);
     } catch (err) {
-      setFailure({ error: err instanceof Error ? err.message : "Something went wrong" });
+      if (err instanceof ApiError) setFailure({ error: err.message, details: err.details });
+      else setFailure({ error: err instanceof Error ? err.message : "Something went wrong" });
     } finally {
       setBusy(false);
     }
