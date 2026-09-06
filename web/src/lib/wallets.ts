@@ -42,7 +42,7 @@ async function ensurePolicy(agent: Agent) {
   const policy = await privy().policies().create({
     version: "1.0",
     chain_type: "ethereum",
-    name: `twofield agent ${agent.id}`,
+    name: `twofield agent ${agent.id.slice(0, 8)}`,
     owner: { public_key: ownerPublicKey() },
     rules: [
       { name: "Sign within budget on Arc", method: "eth_signTransaction", action: "ALLOW", conditions },
@@ -57,7 +57,7 @@ async function ensureWallet(agent: Agent, policyId: string) {
   if (agent.walletId && agent.walletAddress) return { id: agent.walletId, address: agent.walletAddress as `0x${string}` };
   const wallet = await privy().wallets().create({
     chain_type: "ethereum",
-    display_name: `twofield agent ${agent.id}`,
+    display_name: `twofield agent ${agent.id.slice(0, 8)}`,
     owner: { public_key: ownerPublicKey() },
     policy_ids: [policyId],
   });
