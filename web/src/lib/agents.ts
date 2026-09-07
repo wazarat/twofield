@@ -1,4 +1,4 @@
-import type { Agent } from "@/db/schema";
+import { jobPeriods, type Agent, type JobPeriod } from "@/db/schema";
 
 export const agentLimits = {
   nameMax: 60,
@@ -14,8 +14,11 @@ export type AgentInput = {
   description: string;
   maxBudgetPerJob: number;
   maxJobs: number;
+  jobsPeriod: JobPeriod;
   maxTotalBudget: number;
 };
+
+export const periodLabels: Record<JobPeriod, string> = { hour: "hour", day: "day", week: "week" };
 
 function round6(n: number) {
   return Math.round(n * 1_000_000) / 1_000_000;
@@ -28,6 +31,7 @@ export function validateAgentInput(body: unknown): { ok: true; value: AgentInput
   const perJob = Number(b.maxBudgetPerJob);
   const jobs = Number(b.maxJobs);
   const total = Number(b.maxTotalBudget);
+  const period = b.jobsPeriod === undefined ? "week" : b.jobsPeriod;
   const { budgetMin, budgetMax, jobsMin, jobsMax } = agentLimits;
 
   if (!name) return { ok: false, error: "Name is required" };
@@ -41,6 +45,9 @@ export function validateAgentInput(body: unknown): { ok: true; value: AgentInput
   if (!Number.isInteger(jobs) || jobs < jobsMin || jobs > jobsMax) {
     return { ok: false, error: `Max number of jobs must be a whole number between ${jobsMin} and ${jobsMax}` };
   }
+  if (typeof period !== "string" || !jobPeriods.includes(period as JobPeriod)) {
+    return { ok: false, error: "The job period must be hour, day or week" };
+  }
   if (!Number.isFinite(total) || total < budgetMin || total > budgetMax) {
     return { ok: false, error: `Max total budget must be between ${budgetMin} and ${budgetMax} USDC` };
   }
@@ -48,7 +55,7 @@ export function validateAgentInput(body: unknown): { ok: true; value: AgentInput
 
   return {
     ok: true,
-    value: { name, description, maxBudgetPerJob: round6(perJob), maxJobs: jobs, maxTotalBudget: round6(total) },
+    value: { name, description, maxBudgetPerJob: round6(perJob), maxJobs: jobs, jobsPeriod: period as JobPeriod, maxTotalBudget: round6(total) },
   };
 }
 
@@ -63,7 +70,11 @@ export function formatUsdc(value: string | number) {
   return `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })} USDC`;
 }
 
-export function budgetSummary(agent: Pick<Agent, "maxBudgetPerJob" | "maxJobs" | "maxTotalBudget">) {
+export function jobRate(agent: Pick<Agent, "maxJobs" | "jobsPeriod">) {
   const jobs = agent.maxJobs === 1 ? "1 job" : `${agent.maxJobs} jobs`;
-  return `Up to ${formatUsdc(agent.maxBudgetPerJob)} per job, ${jobs}, ${formatUsdc(agent.maxTotalBudget)} total`;
+  return `${jobs} per ${periodLabels[agent.jobsPeriod]}`;
+}
+
+export function budgetSummary(agent: Pick<Agent, "maxBudgetPerJob" | "maxJobs" | "jobsPeriod" | "maxTotalBudget">) {
+  return `Up to ${formatUsdc(agent.maxBudgetPerJob)} per job, ${jobRate(agent)}, ${formatUsdc(agent.maxTotalBudget)} total`;
 }

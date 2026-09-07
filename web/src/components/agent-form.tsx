@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { Agent } from "@/db/schema";
-import { agentLimits } from "@/lib/agents";
+import { jobPeriods, type Agent } from "@/db/schema";
+import { agentLimits, periodLabels } from "@/lib/agents";
 import { api } from "@/lib/api";
 
 const field =
@@ -13,6 +13,7 @@ export function AgentForm({ onCreated }: { onCreated: (agent: Agent) => void }) 
   const [description, setDescription] = useState("");
   const [perJob, setPerJob] = useState("2");
   const [jobs, setJobs] = useState("3");
+  const [period, setPeriod] = useState<Agent["jobsPeriod"]>("week");
   const [total, setTotal] = useState("5");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,6 +34,7 @@ export function AgentForm({ onCreated }: { onCreated: (agent: Agent) => void }) 
           description,
           maxBudgetPerJob: Number(perJob),
           maxJobs: Number(jobs),
+          jobsPeriod: period,
           maxTotalBudget: Number(total),
         }),
       });
@@ -41,6 +43,7 @@ export function AgentForm({ onCreated }: { onCreated: (agent: Agent) => void }) 
       setDescription("");
       setPerJob("2");
       setJobs("3");
+      setPeriod("week");
       setTotal("5");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -56,7 +59,7 @@ export function AgentForm({ onCreated }: { onCreated: (agent: Agent) => void }) 
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Add an agent</p>
       <h2 className="mt-3 font-display text-2xl font-medium tracking-[-0.03em]">Give your agent a seat at the table</h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-        This is the agent that will hire specialists. Budgets are locked once its wallet is created.
+        This is the agent that will hire specialists. You can edit its budgets later from its page.
       </p>
 
       <label className="mt-8 block text-sm font-medium">
@@ -101,23 +104,35 @@ export function AgentForm({ onCreated }: { onCreated: (agent: Agent) => void }) 
           </span>
         </label>
 
-        <label className="block text-sm font-medium">
-          Max number of jobs
-          <input
-            className={`${field} mt-2 font-mono`}
-            type="number"
-            inputMode="numeric"
-            min={jobsMin}
-            max={jobsMax}
-            step="1"
-            value={jobs}
-            onChange={(e) => setJobs(e.target.value)}
-            required
-          />
-          <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">
-            {jobsMin} to {jobsMax}
-          </span>
-        </label>
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <label className="block text-sm font-medium">
+            Max jobs per period
+            <input
+              className={`${field} mt-2 font-mono`}
+              type="number"
+              inputMode="numeric"
+              min={jobsMin}
+              max={jobsMax}
+              step="1"
+              value={jobs}
+              onChange={(e) => setJobs(e.target.value)}
+              required
+            />
+            <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">
+              {jobsMin} to {jobsMax}
+            </span>
+          </label>
+          <label className="block text-sm font-medium">
+            Per
+            <select className={`${field} mt-2`} value={period} onChange={(e) => setPeriod(e.target.value as Agent["jobsPeriod"])}>
+              {jobPeriods.map((p) => (
+                <option key={p} value={p}>
+                  {periodLabels[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <label className="mt-5 block text-sm font-medium">

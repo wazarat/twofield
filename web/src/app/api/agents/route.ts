@@ -35,6 +35,7 @@ export async function POST(request: Request) {
       description: parsed.value.description,
       maxBudgetPerJob: parsed.value.maxBudgetPerJob.toString(),
       maxJobs: parsed.value.maxJobs,
+      jobsPeriod: parsed.value.jobsPeriod,
       maxTotalBudget: parsed.value.maxTotalBudget.toString(),
     })
     .returning();

@@ -91,8 +91,13 @@ async function ensureWallet(agent: Agent, policyId: string) {
 }
 
 async function fund(agent: Agent, to: `0x${string}`, options: WalletOptions) {
+  return transferFromMaster(to, options.fundingUsdc);
+}
+
+// Moves USDC from the master wallet, keeping its reserve.
+async function transferFromMaster(to: `0x${string}`, amountUsdc: string) {
   const master = masterWallet();
-  const amount = toWei(options.fundingUsdc);
+  const amount = toWei(amountUsdc);
   const needed = amount + toWei(MASTER_RESERVE_USDC);
   const balance = await publicClient.getBalance({ address: master.address });
   if (balance < needed) {
@@ -129,6 +134,13 @@ export async function createAgentWallet(agent: Agent, options: WalletOptions = w
 export async function agentBalance(address: string) {
   const wei = await publicClient.getBalance({ address: address as `0x${string}` });
   return fromWei(wei);
+}
+
+// Adds to an existing wallet when the max total budget is raised.
+export async function topUp(agent: Agent, amountUsdc: string) {
+  if (!agent.walletAddress) throw new WalletError("This agent has no wallet", 409);
+  const hash = await transferFromMaster(agent.walletAddress as `0x${string}`, amountUsdc);
+  return save(agent.id, { topUpTx: hash });
 }
 
 // Sends everything but the transfer fee back to the master wallet. Returns the hash, or

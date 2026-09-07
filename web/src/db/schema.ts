@@ -6,6 +6,9 @@ export type AgentStatus = (typeof agentStatuses)[number];
 export const agentKinds = ["buyer", "seller"] as const;
 export type AgentKind = (typeof agentKinds)[number];
 
+export const jobPeriods = ["hour", "day", "week"] as const;
+export type JobPeriod = (typeof jobPeriods)[number];
+
 export const PLATFORM_OWNER = "platform";
 
 // One row per signed in account, keyed by the Privy DID. The username is public.
@@ -25,6 +28,8 @@ export const agents = pgTable("agents", {
   description: text("description").notNull().default(""),
   maxBudgetPerJob: numeric("max_budget_per_job", { precision: 18, scale: 6 }).notNull(),
   maxJobs: integer("max_jobs").notNull(),
+  // Max jobs is a rate. This is the window it applies to.
+  jobsPeriod: text("jobs_period", { enum: jobPeriods }).notNull().default("week"),
   maxTotalBudget: numeric("max_total_budget", { precision: 18, scale: 6 }).notNull(),
   status: text("status", { enum: agentStatuses }).notNull().default("draft"),
   policyId: text("policy_id"),
@@ -46,6 +51,7 @@ export const agents = pgTable("agents", {
   policyVersion: integer("policy_version").notNull().default(1),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   sweepTx: text("sweep_tx"),
+  topUpTx: text("top_up_tx"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -43,6 +43,13 @@
       "when": 1788778608413,
       "tag": "0005_remarkable_starbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788779106628,
+      "tag": "0006_wealthy_roland_deschain",
+      "breakpoints": true
     }
   ]
 }

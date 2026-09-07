@@ -123,8 +123,14 @@ export const evaluatorAllowlist = [AGENTIC_COMMERCE, VALIDATION_REGISTRY];
 
 // Brings an existing buyer policy up to the current rule set. Idempotent.
 export async function ensureBuyerPolicy(agent: Agent) {
+  return syncBuyerPolicy(agent, { force: false });
+}
+
+// Rewrites the buyer policy. With force it runs even at the current version, which
+// budget edits need because the per job cap is baked into the rules.
+export async function syncBuyerPolicy(agent: Agent, { force }: { force: boolean }) {
   if (!agent.policyId) throw new Error("Agent has no policy");
-  if (agent.policyVersion >= BUYER_POLICY_VERSION) return agent;
+  if (!force && agent.policyVersion >= BUYER_POLICY_VERSION) return agent;
   await privy().policies().update(agent.policyId, {
     rules: buyerRules(agent),
     authorization_context: authorizationContext(),

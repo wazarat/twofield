@@ -45,6 +45,7 @@ export function registrationFile(agent: Agent, base: string, owner?: { username:
             walletAddress: agent.walletAddress,
             maxBudgetPerJob: agent.maxBudgetPerJob,
             maxJobs: agent.maxJobs,
+            jobsPeriod: agent.jobsPeriod,
             maxTotalBudget: agent.maxTotalBudget,
           },
   };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Agent } from "@/db/schema";
-import { formatUsdc } from "@/lib/agents";
+import { formatUsdc, jobRate } from "@/lib/agents";
 import { ApiError, api } from "@/lib/api";
 import { explorerTx } from "@/lib/arc";
 import { StatusPill } from "@/components/status-pill";
@@ -11,12 +11,14 @@ import { WalletPanel } from "@/components/wallet-panel";
 import { IdentityPanel } from "@/components/identity-panel";
 import { AgentJobs } from "@/components/agent-jobs";
 import { useCurrentUser } from "@/components/user-context";
+import { EditAgentForm } from "@/components/edit-agent-form";
 
 export function AgentDetail({ id }: { id: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { user: me } = useCurrentUser();
   const [confirming, setConfirming] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
 
@@ -68,7 +70,7 @@ export function AgentDetail({ id }: { id: string }) {
 
   const budgets = [
     { label: "Max per job", value: formatUsdc(agent.maxBudgetPerJob) },
-    { label: "Max jobs", value: String(agent.maxJobs) },
+    { label: "Max jobs", value: jobRate(agent) },
     { label: "Max total", value: formatUsdc(agent.maxTotalBudget) },
   ];
 
@@ -139,9 +141,17 @@ export function AgentDetail({ id }: { id: string }) {
             ))}
           </dl>
           <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-            The per job cap is enforced by the wallet policy. The total is what the wallet is funded with. Locked once
-            the wallet exists.
+            The per job cap is enforced by the wallet policy. The total is what the wallet is funded with.
           </p>
+          {!agent.archivedAt ? (
+            editing ? (
+              <EditAgentForm agent={agent} onUpdated={setAgent} onClose={() => setEditing(false)} />
+            ) : (
+              <button type="button" onClick={() => setEditing(true)} className="mt-4 rounded-full border border-ink px-5 py-2 text-sm font-medium transition hover:bg-ink hover:text-white">
+                Edit budgets
+              </button>
+            )
+          ) : null}
           {!agent.archivedAt ? (
             <div className="mt-8 border-t border-line pt-6">
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Archive</p>

@@ -1,6 +1,7 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gte, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { agents, jobs, type Agent, type Job } from "@/db/schema";
+import { agents, jobs, type Agent, type Job, type JobPeriod } from "@/db/schema";
+import { jobRate } from "@/lib/agents";
 import { JOB_GAS_RESERVE_USDC, fromWei, publicClient, toUsdc6, toWei } from "@/lib/arc";
 import { AppError } from "@/lib/errors";
 import { escrowApprove, escrowCreateJob, escrowFund, escrowSetBudget, type WalletRef } from "@/lib/escrow";
@@ -28,11 +29,15 @@ function walletRef(agent: Agent, label: string): WalletRef {
   return { id: agent.walletId, address: agent.walletAddress as `0x${string}` };
 }
 
-export async function countActiveJobs(buyerAgentId: string) {
+const periodMs: Record<JobPeriod, number> = { hour: 60 * 60 * 1000, day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000 };
+
+// Jobs opened inside the agent's trailing window. Failed jobs do not count.
+export async function countJobsInWindow(buyerAgentId: string, period: JobPeriod) {
+  const since = new Date(Date.now() - periodMs[period]);
   const rows = await db()
     .select({ id: jobs.id })
     .from(jobs)
-    .where(and(eq(jobs.buyerAgentId, buyerAgentId), inArray(jobs.status, [...activeJobStatuses])));
+    .where(and(eq(jobs.buyerAgentId, buyerAgentId), gte(jobs.createdAt, since), ne(jobs.status, "failed")));
   return rows.length;
 }
 
@@ -50,8 +55,8 @@ export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brie
   if (Number(seller.priceUsdc) > Number(buyer.maxBudgetPerJob)) {
     throw new JobError(`This specialist costs more than the agent's max budget per job of ${buyer.maxBudgetPerJob} USDC`, 400);
   }
-  const active = await countActiveJobs(buyer.id);
-  if (active >= buyer.maxJobs) throw new JobError(`This agent already has its maximum of ${buyer.maxJobs} jobs`, 400);
+  const opened = await countJobsInWindow(buyer.id, buyer.jobsPeriod);
+  if (opened >= buyer.maxJobs) throw new JobError(`This agent already opened its ${jobRate(buyer)}`, 400);
 
   const balance = await publicClient.getBalance({ address: buyer.walletAddress as `0x${string}` });
   const needed = toWei(seller.priceUsdc) + toWei(JOB_GAS_RESERVE_USDC);
