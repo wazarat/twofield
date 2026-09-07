@@ -15,6 +15,13 @@
       "when": 1788684311247,
       "tag": "0001_rare_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788763939333,
+      "tag": "0002_new_kid_colt",
+      "breakpoints": true
     }
   ]
 }

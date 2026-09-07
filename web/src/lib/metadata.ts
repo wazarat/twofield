@@ -18,19 +18,33 @@ export function registrationFile(agent: Agent, base: string) {
     name: agent.name,
     description: agent.description || `${agent.name} is a buyer agent on twofield that hires specialists for scoped jobs.`,
     image: `${base}/agent-mark.svg`,
-    services: [{ name: "web", endpoint: `${base}/agents/${agent.id}` }],
+    services:
+      agent.kind === "seller"
+        ? [
+            { name: "web", endpoint: `${base}/sellers/${agent.id}` },
+            { name: "preview", endpoint: `${base}/api/sellers/${agent.id}/preview`, version: "x402-exact" },
+          ]
+        : [{ name: "web", endpoint: `${base}/agents/${agent.id}` }],
     registrations: agent.onchainAgentId
       ? [{ agentId: Number(agent.onchainAgentId), agentRegistry: `eip155:${ARC_CHAIN_ID}:${IDENTITY_REGISTRY}` }]
       : [],
     supportedTrust: ["reputation"],
-    x402Support: false,
+    x402Support: agent.kind === "seller",
     active: true,
-    twofield: {
-      role: "buyer",
-      walletAddress: agent.walletAddress,
-      maxBudgetPerJob: agent.maxBudgetPerJob,
-      maxJobs: agent.maxJobs,
-      maxTotalBudget: agent.maxTotalBudget,
-    },
+    twofield:
+      agent.kind === "seller"
+        ? {
+            role: "seller",
+            category: agent.categorySlug,
+            priceUsdc: agent.priceUsdc,
+            walletAddress: agent.walletAddress,
+          }
+        : {
+            role: "buyer",
+            walletAddress: agent.walletAddress,
+            maxBudgetPerJob: agent.maxBudgetPerJob,
+            maxJobs: agent.maxJobs,
+            maxTotalBudget: agent.maxTotalBudget,
+          },
   };
 }

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const auth = await requireUser(request);
   if (auth.response) return auth.response;
 
-  const rows = await db().select().from(agents).where(eq(agents.ownerId, auth.userId)).orderBy(desc(agents.createdAt));
+  const rows = await db().select().from(agents).where(and(eq(agents.ownerId, auth.userId), eq(agents.kind, "buyer"))).orderBy(desc(agents.createdAt));
   return NextResponse.json({ agents: rows });
 }
 

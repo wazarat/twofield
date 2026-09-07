@@ -14,6 +14,12 @@ import {
   toWei,
 } from "@/lib/arc";
 import { AppError } from "@/lib/errors";
+import {
+  AGENTIC_COMMERCE,
+  REPUTATION_REGISTRY,
+  SELLER_GAS_USDC,
+  VALIDATION_REGISTRY,
+} from "@/lib/arc";
 import { authorizationContext, masterWallet, ownerPublicKey, privy } from "@/lib/privy";
 
 export class WalletError extends AppError {}
@@ -23,19 +29,43 @@ async function save(id: string, patch: Partial<Agent>) {
   return row;
 }
 
-async function ensurePolicy(agent: Agent) {
+export type WalletOptions = {
+  // Native USDC moved from the master wallet on creation.
+  fundingUsdc: string;
+  // Contracts the wallet may call.
+  allowlist: string[];
+  // Max native value per transaction.
+  capUsdc: string;
+};
+
+export function walletOptionsFor(agent: Agent): WalletOptions {
+  if (agent.kind === "seller") {
+    return {
+      fundingUsdc: SELLER_GAS_USDC,
+      allowlist: [IDENTITY_REGISTRY, AGENTIC_COMMERCE, REPUTATION_REGISTRY, VALIDATION_REGISTRY],
+      capUsdc: "0",
+    };
+  }
+  return {
+    fundingUsdc: (Number(agent.maxTotalBudget) + Number(GAS_BUFFER_USDC)).toFixed(6),
+    allowlist: [IDENTITY_REGISTRY],
+    capUsdc: agent.maxBudgetPerJob,
+  };
+}
+
+async function ensurePolicy(agent: Agent, options: WalletOptions) {
   if (agent.policyId) return agent.policyId;
-  const cap = toWei(agent.maxBudgetPerJob).toString();
+  const cap = toWei(options.capUsdc).toString();
   const source = "ethereum_transaction" as const;
   const conditions = [
     { field_source: source, field: "chain_id" as const, operator: "eq" as const, value: String(ARC_CHAIN_ID) },
-    { field_source: source, field: "to" as const, operator: "in" as const, value: [IDENTITY_REGISTRY as string] },
+    { field_source: source, field: "to" as const, operator: "in" as const, value: options.allowlist },
     { field_source: source, field: "value" as const, operator: "lte" as const, value: cap },
   ];
   const policy = await privy().policies().create({
     version: "1.0",
     chain_type: "ethereum",
-    name: `twofield agent ${agent.id.slice(0, 8)}`,
+    name: `twofield ${agent.kind} ${agent.id.slice(0, 8)}`,
     owner: { public_key: ownerPublicKey() },
     rules: [
       { name: "Sign within budget on Arc", method: "eth_signTransaction", action: "ALLOW", conditions },
@@ -50,7 +80,7 @@ async function ensureWallet(agent: Agent, policyId: string) {
   if (agent.walletId && agent.walletAddress) return { id: agent.walletId, address: agent.walletAddress as `0x${string}` };
   const wallet = await privy().wallets().create({
     chain_type: "ethereum",
-    display_name: `twofield agent ${agent.id.slice(0, 8)}`,
+    display_name: `twofield ${agent.kind} ${agent.id.slice(0, 8)}`,
     owner: { public_key: ownerPublicKey() },
     policy_ids: [policyId],
   });
@@ -58,9 +88,9 @@ async function ensureWallet(agent: Agent, policyId: string) {
   return { id: wallet.id, address: wallet.address as `0x${string}` };
 }
 
-async function fund(agent: Agent, to: `0x${string}`) {
+async function fund(agent: Agent, to: `0x${string}`, options: WalletOptions) {
   const master = masterWallet();
-  const amount = toWei(agent.maxTotalBudget) + toWei(GAS_BUFFER_USDC);
+  const amount = toWei(options.fundingUsdc);
   const needed = amount + toWei(MASTER_RESERVE_USDC);
   const balance = await publicClient.getBalance({ address: master.address });
   if (balance < needed) {
@@ -85,11 +115,11 @@ async function fund(agent: Agent, to: `0x${string}`) {
 
 // Creates the policy, the wallet, and the opening transfer. Each step is saved as it
 // completes so a retry after a failure resumes instead of creating duplicates.
-export async function createAgentWallet(agent: Agent) {
+export async function createAgentWallet(agent: Agent, options: WalletOptions = walletOptionsFor(agent)) {
   if (agent.status !== "draft") throw new WalletError("This agent already has a wallet", 409);
-  const policyId = await ensurePolicy(agent);
+  const policyId = await ensurePolicy(agent, options);
   const wallet = await ensureWallet(agent, policyId);
-  const hash = await fund(agent, wallet.address);
+  const hash = await fund(agent, wallet.address, options);
   return save(agent.id, { fundingTx: hash, status: "wallet_ready" });
 }
 
