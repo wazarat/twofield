@@ -85,54 +85,53 @@ export function AgentForm({ onCreated }: { onCreated: (agent: Agent) => void }) 
         />
       </label>
 
+      <label className="mt-5 block text-sm font-medium">
+        Max budget per job, USDC
+        <input
+          className={`${field} mt-2 font-mono`}
+          type="number"
+          inputMode="decimal"
+          min={budgetMin}
+          max={budgetMax}
+          step="0.01"
+          value={perJob}
+          onChange={(e) => setPerJob(e.target.value)}
+          required
+        />
+        <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">
+          {budgetMin} to {budgetMax}
+        </span>
+      </label>
+
       <div className="mt-5 grid gap-5 sm:grid-cols-2">
-        <label className="block text-sm font-medium">
-          Max budget per job, USDC
+        <label className="block min-w-0 text-sm font-medium">
+          Max jobs
           <input
             className={`${field} mt-2 font-mono`}
             type="number"
-            inputMode="decimal"
-            min={budgetMin}
-            max={budgetMax}
-            step="0.01"
-            value={perJob}
-            onChange={(e) => setPerJob(e.target.value)}
+            inputMode="numeric"
+            min={jobsMin}
+            max={jobsMax}
+            step="1"
+            value={jobs}
+            onChange={(e) => setJobs(e.target.value)}
             required
           />
           <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">
-            {budgetMin} to {budgetMax}
+            {jobsMin} to {jobsMax}
           </span>
         </label>
-
-        <div className="grid grid-cols-[1fr_auto] gap-3">
-          <label className="block text-sm font-medium">
-            Max jobs per period
-            <input
-              className={`${field} mt-2 font-mono`}
-              type="number"
-              inputMode="numeric"
-              min={jobsMin}
-              max={jobsMax}
-              step="1"
-              value={jobs}
-              onChange={(e) => setJobs(e.target.value)}
-              required
-            />
-            <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">
-              {jobsMin} to {jobsMax}
-            </span>
-          </label>
-          <label className="block text-sm font-medium">
-            Per
-            <select className={`${field} mt-2`} value={period} onChange={(e) => setPeriod(e.target.value as Agent["jobsPeriod"])}>
-              {jobPeriods.map((p) => (
-                <option key={p} value={p}>
-                  {periodLabels[p]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="block min-w-0 text-sm font-medium">
+          Per
+          <select className={`${field} mt-2`} value={period} onChange={(e) => setPeriod(e.target.value as Agent["jobsPeriod"])}>
+            {jobPeriods.map((p) => (
+              <option key={p} value={p}>
+                {periodLabels[p]}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">The window the limit counts over</span>
+        </label>
       </div>
 
       <label className="mt-5 block text-sm font-medium">
