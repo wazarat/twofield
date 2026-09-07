@@ -1,7 +1,9 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 import { formatUsdc } from "@/lib/agents";
 import { IDENTITY_REGISTRY, explorerAddress, explorerTx } from "@/lib/arc";
 import { getCategory } from "@/lib/categories";
@@ -16,6 +18,22 @@ function shorten(address: string) {
 export function SellerDetail({ id }: { id: string }) {
   const [seller, setSeller] = useState<PublicSeller | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { user } = usePrivy();
+  const isOwner = Boolean(user?.id) && user?.id === process.env.NEXT_PUBLIC_PLATFORM_OWNER_ID;
+
+  async function attest() {
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await api<{ seller: PublicSeller }>(`/api/sellers/${id}/attest`, { method: "POST" });
+      setSeller(d.seller);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Attestation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -36,7 +54,7 @@ export function SellerDetail({ id }: { id: string }) {
     };
   }, [id]);
 
-  if (error) {
+  if (error && !seller) {
     return (
       <div className="rounded-panel border border-line bg-card p-8">
         <p className="text-sm">{error}</p>
@@ -123,9 +141,36 @@ export function SellerDetail({ id }: { id: string }) {
               ) : null}
               <div className="flex justify-between gap-4">
                 <dt>Reputation</dt>
-                <dd>{seller.reputationCount > 0 ? `${seller.reputationScore} from ${seller.reputationCount}` : "none yet"}</dd>
+                <dd>
+                  {seller.reputationCount > 0
+                    ? `${Number(seller.reputationScore).toFixed(0)} of 100 from ${seller.reputationCount} ${seller.reputationCount === 1 ? "job" : "jobs"}`
+                    : "no jobs rated yet"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt>Attestation</dt>
+                <dd>
+                  {seller.attestationTx ? (
+                    <a href={explorerTx(seller.attestationTx)} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
+                      human reviewed
+                    </a>
+                  ) : (
+                    "none"
+                  )}
+                </dd>
               </div>
             </dl>
+            {isOwner && !seller.attestationTx ? (
+              <button
+                type="button"
+                onClick={attest}
+                disabled={busy}
+                className="mt-6 rounded-full bg-ink px-5 py-2 font-sans text-sm font-medium text-white transition hover:bg-ink/85 disabled:opacity-50"
+              >
+                {busy ? "Attesting, two transactions" : "Attest this specialist"}
+              </button>
+            ) : null}
+            {error ? <p className="mt-4 font-sans text-sm text-ink">{error}</p> : null}
           </div>
         </div>
       </div>

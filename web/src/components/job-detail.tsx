@@ -55,6 +55,16 @@ export function JobDetail({ id }: { id: string }) {
       .finally(() => setBusy(false));
   }, [job, id]);
 
+  // A settled job records the buyer's feedback on the specialist once.
+  const rated = useRef(false);
+  useEffect(() => {
+    if (!job || (job.status !== "approved" && job.status !== "refunded") || job.feedbackTx || rated.current) return;
+    rated.current = true;
+    api<{ job: PublicJob }>(`/api/jobs/${id}/feedback`, { method: "POST" })
+      .then((d) => setJob(d.job))
+      .catch(() => undefined);
+  }, [job, id]);
+
   async function call(path: string) {
     setBusy(true);
     setError(null);
@@ -224,6 +234,20 @@ export function JobDetail({ id }: { id: string }) {
                 <div className="flex justify-between gap-4">
                   <dt>Review note</dt>
                   <dd className="text-right">{job.reviewNote}</dd>
+                </div>
+              ) : null}
+              {settled ? (
+                <div className="flex justify-between gap-4">
+                  <dt>Reputation</dt>
+                  <dd>
+                    {job.feedbackTx ? (
+                      <a href={explorerTx(job.feedbackTx)} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
+                        {job.status === "approved" ? "rated 100" : "rated 0"}
+                      </a>
+                    ) : (
+                      "recording"
+                    )}
+                  </dd>
                 </div>
               ) : null}
             </dl>
