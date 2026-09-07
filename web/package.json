@@ -15,6 +15,7 @@
     "wallet:evaluator": "node --no-warnings --experimental-transform-types --env-file=.env.local --import ./scripts/register-alias.mjs scripts/create-evaluator-wallet.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@neondatabase/serverless": "^1.1.0",
     "@privy-io/node": "^0.34.0",
     "@privy-io/react-auth": "^3.40.0",

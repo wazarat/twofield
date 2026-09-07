@@ -18,6 +18,7 @@ export const escrowAbi = parseAbi([
   "event JobCompleted(uint256 indexed jobId, address indexed evaluator, bytes32 reason)",
   "event JobRejected(uint256 indexed jobId, address indexed rejector, bytes32 reason)",
   "event Refunded(uint256 indexed jobId, address indexed client, uint256 amount)",
+  "event PaymentReleased(uint256 indexed jobId, address indexed provider, uint256 amount)",
 ]);
 
 export const erc20Abi = parseAbi([
