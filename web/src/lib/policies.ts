@@ -13,7 +13,8 @@ import {
 } from "@/lib/arc";
 import { authorizationContext, privy } from "@/lib/privy";
 
-export const BUYER_POLICY_VERSION = 2;
+export const BUYER_POLICY_VERSION = 4;
+export const PREVIEW_CAP_USDC = "0.01";
 
 const chain = { field_source: "ethereum_transaction" as const, field: "chain_id" as const, operator: "eq" as const, value: String(ARC_CHAIN_ID) };
 const zeroValue = { field_source: "ethereum_transaction" as const, field: "value" as const, operator: "lte" as const, value: "0" };
@@ -60,7 +61,7 @@ export function buyerRules(agent: Agent) {
       conditions: [chain, to([AGENTIC_COMMERCE, REPUTATION_REGISTRY]), zeroValue],
     },
   ];
-  return groups.flatMap((g) =>
+  const transactionRules = groups.flatMap((g) =>
     (["eth_signTransaction", "eth_sendTransaction"] as const).map((method) => ({
       name: `${g.name} (${method === "eth_signTransaction" ? "sign" : "send"})`,
       method,
@@ -68,6 +69,38 @@ export function buyerRules(agent: Agent) {
       conditions: g.conditions,
     })),
   );
+  // x402 preview payments are EIP-3009 authorizations on USDC, signed as typed data.
+  // The types map must equal the signing request exactly, and adding a chain id domain
+  // condition next to a message condition makes Privy deny every request, so the rule
+  // pins the verifying contract and caps the value only.
+  const authorizationRule = {
+    name: "USDC authorization up to the preview price",
+    method: "eth_signTypedData_v4" as const,
+    action: "ALLOW" as const,
+    conditions: [
+      { field_source: "ethereum_typed_data_domain" as const, field: "verifyingContract" as const, operator: "eq" as const, value: USDC },
+      {
+        field_source: "ethereum_typed_data_message" as const,
+        field: "value",
+        operator: "lte" as const,
+        value: toUsdc6(PREVIEW_CAP_USDC).toString(),
+        typed_data: {
+          primary_type: "TransferWithAuthorization",
+          types: {
+            TransferWithAuthorization: [
+              { name: "from", type: "address" },
+              { name: "to", type: "address" },
+              { name: "value", type: "uint256" },
+              { name: "validAfter", type: "uint256" },
+              { name: "validBefore", type: "uint256" },
+              { name: "nonce", type: "bytes32" },
+            ],
+          },
+        },
+      },
+    ],
+  };
+  return [...transactionRules, authorizationRule];
 }
 
 // Evaluator and seller wallets only talk to the marketplace contracts with zero value.

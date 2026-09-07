@@ -10,6 +10,7 @@ import { getCategory } from "@/lib/categories";
 import type { PublicSeller } from "@/lib/public-seller";
 import { nichePackSections } from "@/lib/sellers";
 import { HireButton } from "@/components/hire-button";
+import { PreviewButton } from "@/components/preview-button";
 
 function shorten(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -102,8 +103,9 @@ export function SellerDetail({ id }: { id: string }) {
           <div className="rounded-panel border border-line bg-card p-8">
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Price per job</p>
             <p className="mt-4 font-display text-3xl font-medium tracking-[-0.03em]">{formatUsdc(seller.priceUsdc)}</p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap gap-3">
               <HireButton sellerId={seller.id} sellerName={seller.name} priceUsdc={seller.priceUsdc} size="lg" />
+              <PreviewButton sellerId={seller.id} sellerName={seller.name} />
             </div>
           </div>
           <div className="rounded-panel border border-line bg-card p-8 font-mono text-xs text-ink-muted">
