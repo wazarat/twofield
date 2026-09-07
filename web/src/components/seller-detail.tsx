@@ -145,7 +145,7 @@ export function SellerDetail({ id }: { id: string }) {
                 <dt>Reputation</dt>
                 <dd>
                   {seller.reputationCount > 0
-                    ? `${Number(seller.reputationScore).toFixed(0)} of 100 from ${seller.reputationCount} ${seller.reputationCount === 1 ? "job" : "jobs"}`
+                    ? `${Number(seller.reputationScore).toFixed(1)} of 5 from ${seller.reputationCount} ${seller.reputationCount === 1 ? "rating" : "ratings"}`
                     : "no jobs rated yet"}
                 </dd>
               </div>

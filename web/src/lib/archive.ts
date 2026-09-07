@@ -7,7 +7,7 @@ import { sweepToMaster } from "@/lib/wallets";
 export class ArchiveError extends AppError {}
 
 // Jobs that still hold or expect escrow. An agent with one of these cannot be archived.
-const openJobStatuses = ["pending", "created", "budgeted", "funded", "generating", "submitted"] as const;
+const openJobStatuses = ["pending", "created", "budgeted", "funded", "generating", "submitted", "disputed"] as const;
 
 // Hides the agent and returns its unspent balance to the master wallet. Safe to call
 // again, an archived agent whose sweep failed retries the sweep only.

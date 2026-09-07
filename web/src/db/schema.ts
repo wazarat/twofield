@@ -68,6 +68,7 @@ export const jobStatuses = [
   "approved",
   "rejected",
   "refunded",
+  "disputed",
   "failed",
 ] as const;
 export type JobStatus = (typeof jobStatuses)[number];
@@ -100,6 +101,9 @@ export const jobs = pgTable("jobs", {
   deliverable: text("deliverable"),
   deliverableHash: text("deliverable_hash"),
   reviewNote: text("review_note"),
+  // The buyer's score, 1 to 5. Three and up settles at once, one or two holds escrow.
+  rating: integer("rating"),
+  ratedAt: timestamp("rated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

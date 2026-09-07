@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const rows = await db()
     .select()
     .from(jobs)
-    .where(inArray(jobs.status, ["submitted", "generating", "funded"]))
+    .where(inArray(jobs.status, ["disputed", "generating", "funded"]))
     .orderBy(desc(jobs.updatedAt));
   const ids = [...new Set(rows.flatMap((r) => [r.buyerAgentId, r.sellerAgentId]))];
   const people = ids.length ? await db().select().from(agents).where(inArray(agents.id, ids)) : [];

@@ -29,7 +29,7 @@ export function SellerCard({ seller }: { seller: PublicSeller }) {
           </span>
           {seller.reputationCount > 0 ? (
             <span className="rounded-full border border-line px-3 py-1 font-mono text-[11px] tracking-wide text-ink-muted">
-              {Number(seller.reputationScore).toFixed(0)} of 100, {seller.reputationCount} {seller.reputationCount === 1 ? "job" : "jobs"}
+              {Number(seller.reputationScore).toFixed(1)} of 5, {seller.reputationCount} {seller.reputationCount === 1 ? "rating" : "ratings"}
             </span>
           ) : null}
         </div>

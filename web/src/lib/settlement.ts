@@ -69,9 +69,26 @@ export async function submitWork(job: Job) {
   }
 }
 
+export const ratingRange = { min: 1, max: 5, payFrom: 3 };
+
+// The buyer's verdict. Three and up pays the specialist now. One or two holds escrow and
+// hands the job to the platform review queue.
+export async function rateJob(job: Job, score: number) {
+  if (job.status !== "submitted") throw new SettlementError(`Only submitted work can be rated, this job is ${job.status}`, 409);
+  if (job.rating !== null) throw new SettlementError("This job is already rated", 409);
+  if (!Number.isInteger(score) || score < ratingRange.min || score > ratingRange.max) {
+    throw new SettlementError(`The rating must be a whole number from ${ratingRange.min} to ${ratingRange.max}`, 400);
+  }
+  const rated = await save(job.id, { rating: score, ratedAt: new Date() });
+  if (score >= ratingRange.payFrom) return approveJob(rated, `rated ${score} of 5`);
+  return save(job.id, { status: "disputed", lastError: null });
+}
+
 // The evaluator wallet completes the job, releasing escrow to the seller.
 export async function approveJob(job: Job, note: string) {
-  if (job.status !== "submitted") throw new SettlementError(`Only submitted jobs can be approved, this one is ${job.status}`, 409);
+  if (job.status !== "submitted" && job.status !== "disputed") {
+    throw new SettlementError(`Only submitted or disputed jobs can be approved, this one is ${job.status}`, 409);
+  }
   const hash = await walletClientFor(evaluatorWallet()).writeContract({
     address: AGENTIC_COMMERCE,
     abi: escrowAbi,
@@ -86,7 +103,7 @@ export async function approveJob(job: Job, note: string) {
 
 // The evaluator wallet rejects the job. The contract refunds the buyer in the same call.
 export async function rejectJob(job: Job, note: string) {
-  if (!["submitted", "funded", "generating"].includes(job.status)) {
+  if (!["submitted", "disputed", "funded", "generating"].includes(job.status)) {
     throw new SettlementError(`This job cannot be rejected, it is ${job.status}`, 409);
   }
   const hash = await walletClientFor(evaluatorWallet()).writeContract({

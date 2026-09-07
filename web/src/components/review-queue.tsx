@@ -58,8 +58,8 @@ export function ReviewQueue() {
   if (error && !list) return <p className="text-sm">{error}</p>;
   if (!list) return <div className="h-48 animate-pulse rounded-panel border border-line bg-card/60" aria-hidden="true" />;
 
-  const waiting = list.filter((j) => j.status === "submitted");
-  const working = list.filter((j) => j.status !== "submitted");
+  const waiting = list.filter((j) => j.status === "disputed");
+  const working = list.filter((j) => j.status !== "disputed");
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,7 +67,7 @@ export function ReviewQueue() {
       {waiting.length === 0 ? (
         <div className="rounded-panel border border-dashed border-line-strong p-8">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Nothing to review</p>
-          <p className="mt-3 text-sm text-ink-muted">Submitted work appears here once a specialist finishes.</p>
+          <p className="mt-3 text-sm text-ink-muted">Jobs a buyer rated 1 or 2 appear here with their escrow held. Ratings of 3 and up settle on their own.</p>
         </div>
       ) : null}
       {waiting.map((job) => (
@@ -78,7 +78,7 @@ export function ReviewQueue() {
                 {job.seller?.name} for {buyerLabel(job.buyer)}
               </p>
               <h2 className="mt-2 font-display text-2xl font-medium tracking-[-0.03em]">
-                {formatUsdc(job.priceUsdc)} in escrow, ERC-8183 job {job.onchainJobId}
+                Rated {job.rating} of 5, {formatUsdc(job.priceUsdc)} held in ERC-8183 job {job.onchainJobId}
               </h2>
             </div>
             <Link href={`/jobs/${job.id}`} className="text-sm font-medium underline-offset-4 hover:underline">

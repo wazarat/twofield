@@ -45,21 +45,21 @@ export function JobDetail({ id }: { id: string }) {
       .finally(() => setBusy(false));
   }, [job, id]);
 
-  // A settled job records the buyer's feedback on the specialist once.
+  // A rated job records the buyer's score on the specialist once.
   const rated = useRef(false);
   useEffect(() => {
-    if (!job || (job.status !== "approved" && job.status !== "refunded") || job.feedbackTx || rated.current) return;
+    if (!job || job.rating === null || job.feedbackTx || rated.current) return;
     rated.current = true;
     api<{ job: PublicJob }>(`/api/jobs/${id}/feedback`, { method: "POST" })
       .then((d) => setJob(d.job))
       .catch(() => undefined);
   }, [job, id]);
 
-  async function call(path: string) {
+  async function call(path: string, body?: Record<string, unknown>) {
     setBusy(true);
     setError(null);
     try {
-      const d = await api<{ job: PublicJob }>(path, { method: "POST" });
+      const d = await api<{ job: PublicJob }>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
       setJob(d.job);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
@@ -87,7 +87,11 @@ export function JobDetail({ id }: { id: string }) {
     { label: "Escrow approved", tx: job.approveTx },
     { label: "Escrow funded", tx: job.fundTx },
     { label: "Work submitted", tx: job.submitTx, note: job.status === "generating" || busy ? "in progress" : undefined },
-    { label: job.refundTx ? "Rejected, buyer refunded" : "Approved, specialist paid", tx: job.settleTx ?? job.refundTx, note: job.status === "submitted" ? "awaiting review" : undefined },
+    {
+      label: job.refundTx ? "Rejected, buyer refunded" : job.status === "disputed" ? "In dispute, escrow held" : "Approved, specialist paid",
+      tx: job.settleTx ?? job.refundTx,
+      note: job.status === "submitted" ? "awaiting your rating" : job.status === "disputed" ? "twofield reviewing" : undefined,
+    },
   ];
   const escrowStalled = Boolean(job.lastError) && !job.fundTx;
   const workStalled = Boolean(job.lastError) && Boolean(job.fundTx) && !job.submitTx;
@@ -139,9 +143,31 @@ export function JobDetail({ id }: { id: string }) {
             {busy && job.status === "funded" ? (
               <p className="mt-6 text-sm text-ink-muted">The specialist is writing the niche pack. This takes about a minute.</p>
             ) : null}
-            {job.status === "submitted" ? (
+            {job.status === "submitted" && job.rating === null ? (
+              <div className="mt-6 rounded-card border border-line-strong p-5">
+                <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Rate the work</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                  3 to 5 pays the specialist now. 1 or 2 holds escrow for twofield review.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <button
+                      key={score}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => call(`/api/jobs/${id}/rate`, { score })}
+                      className={`h-11 w-11 rounded-full border text-sm font-medium transition disabled:opacity-50 ${score >= 3 ? "border-ink bg-ink text-white hover:bg-ink/85" : "border-ink hover:bg-ink hover:text-white"}`}
+                    >
+                      {score}
+                    </button>
+                  ))}
+                </div>
+                {busy ? <p className="mt-3 font-mono text-xs text-ink-muted">Recording your rating, about twenty seconds</p> : null}
+              </div>
+            ) : null}
+            {job.status === "disputed" ? (
               <p className="mt-6 text-sm text-ink-muted">
-                Work is in the human review queue. Escrow releases to the specialist on approval.
+                You rated this {job.rating} of 5. Escrow is held while twofield reviews the work against the brief, then pays the specialist or refunds the buyer.
                 {isOwner ? (
                   <>
                     {" "}
@@ -250,16 +276,16 @@ export function JobDetail({ id }: { id: string }) {
                   <dd className="text-right">{job.reviewNote}</dd>
                 </div>
               ) : null}
-              {settled ? (
+              {job.rating !== null ? (
                 <div className="flex justify-between gap-4">
-                  <dt>Reputation</dt>
+                  <dt>Buyer rating</dt>
                   <dd>
                     {job.feedbackTx ? (
                       <a href={explorerTx(job.feedbackTx)} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
-                        {job.status === "approved" ? "rated 100" : "rated 0"}
+                        {job.rating} of 5
                       </a>
                     ) : (
-                      "recording"
+                      `${job.rating} of 5, recording`
                     )}
                   </dd>
                 </div>

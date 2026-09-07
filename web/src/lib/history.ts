@@ -22,10 +22,11 @@ export const jobStatusLabel: Record<JobStatus, string> = {
   budgeted: "Price set",
   funded: "Funded",
   generating: "Specialist working",
-  submitted: "Awaiting review",
+  submitted: "Awaiting your rating",
   approved: "Approved, specialist paid",
   rejected: "Rejected",
   refunded: "Rejected, buyer refunded",
+  disputed: "In dispute, escrow held",
   failed: "Failed",
 };
 

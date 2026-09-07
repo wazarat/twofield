@@ -10,7 +10,9 @@ import { evaluatorWallet } from "@/lib/privy";
 export class ReputationError extends AppError {}
 
 export const FEEDBACK_TAG1 = "personal-brand";
-export const FEEDBACK_TAG2 = "niche-pack";
+// Ratings are 1 to 5 under this tag. Earlier 100 and 0 entries sat under niche-pack and
+// are left out of summaries on purpose.
+export const FEEDBACK_TAG2 = "rating-5";
 export const ATTEST_TAG = "human-reviewed";
 
 export const reputationAbi = parseAbi([
@@ -66,17 +68,15 @@ export async function refreshReputation(seller: Agent) {
   return row;
 }
 
-// The buyer wallet rates the seller once a job has settled. Idempotent per job.
+// The buyer wallet writes the buyer's 1 to 5 rating for the seller. Idempotent per job.
 export async function recordFeedback(job: Job, base: string) {
   if (job.feedbackTx) return job;
-  if (job.status !== "approved" && job.status !== "refunded") {
-    throw new ReputationError(`Feedback is recorded after settlement, this job is ${job.status}`, 409);
-  }
+  if (job.rating === null) throw new ReputationError("Rate the work first", 409);
   const [buyer] = await db().select().from(agents).where(eq(agents.id, job.buyerAgentId)).limit(1);
   const [seller] = await db().select().from(agents).where(eq(agents.id, job.sellerAgentId)).limit(1);
   if (!seller.onchainAgentId) throw new ReputationError("Specialist has no onchain identity", 409);
 
-  const value = BigInt(job.status === "approved" ? 100 : 0);
+  const value = BigInt(job.rating);
   const hash = await walletClientFor(wallet(buyer, "Buyer agent")).writeContract({
     address: REPUTATION_REGISTRY,
     abi: reputationAbi,
