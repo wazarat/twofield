@@ -11,5 +11,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const result = await loadOwnedJob(request, id);
   if (result.response) return result.response;
   const job = await fundJob(result.job);
-  return NextResponse.json({ job: publicJob(job, result.buyer, result.seller) });
+  return NextResponse.json({ job: publicJob(job, result.buyer, result.seller, result.files, result.owner) });
 }

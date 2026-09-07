@@ -8,6 +8,7 @@ import { publicJob } from "@/lib/public-job";
 import { approveJob } from "@/lib/settlement";
 import { appBaseUrl } from "@/lib/metadata";
 import { recordFeedback } from "@/lib/reputation";
+import { getUser } from "@/lib/users";
 
 export const maxDuration = 120;
 
@@ -27,7 +28,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const [buyer] = await db().select().from(agents).where(eq(agents.id, job.buyerAgentId)).limit(1);
     const [seller] = await db().select().from(agents).where(eq(agents.id, job.sellerAgentId)).limit(1);
-    return NextResponse.json({ job: publicJob(updated, buyer, seller) });
+    const owner = await getUser(job.ownerId);
+    return NextResponse.json({ job: publicJob(updated, buyer, seller, [], owner) });
   } catch (err) {
     if (err instanceof AppError) return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
     const message = err instanceof Error ? err.message.split("\n")[0] : "Approval failed";

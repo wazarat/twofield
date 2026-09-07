@@ -57,6 +57,13 @@
       "when": 1788779761030,
       "tag": "0007_productive_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788780634402,
+      "tag": "0008_giant_makkari",
+      "breakpoints": true
     }
   ]
 }

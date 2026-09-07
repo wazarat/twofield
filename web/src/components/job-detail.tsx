@@ -7,21 +7,10 @@ import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
 import { AGENTIC_COMMERCE, explorerAddress, explorerTx } from "@/lib/arc";
 import { formatBytes } from "@/lib/context";
-import type { PublicJob } from "@/lib/public-job";
+import { jobStatusLabel as statusLabel } from "@/lib/history";
+import { buyerLabel, type PublicJob } from "@/lib/public-job";
 import { Deliverable } from "@/components/deliverable";
 
-const statusLabel: Record<PublicJob["status"], string> = {
-  pending: "Opening",
-  created: "Created onchain",
-  budgeted: "Price set",
-  funded: "Funded",
-  generating: "Specialist working",
-  submitted: "Awaiting review",
-  approved: "Approved, specialist paid",
-  rejected: "Rejected",
-  refunded: "Rejected, buyer refunded",
-  failed: "Failed",
-};
 
 export function JobDetail({ id }: { id: string }) {
   const { user } = usePrivy();
@@ -112,7 +101,7 @@ export function JobDetail({ id }: { id: string }) {
         </span>
       </div>
       <p className="mt-4 max-w-2xl text-lg text-ink-muted">
-        Hired by {job.buyer ? <Link href={`/agents/${job.buyer.id}`} className="text-ink underline-offset-4 hover:underline">{job.buyer.name}</Link> : "your agent"} for {formatUsdc(job.priceUsdc)}.
+        Hired by {job.buyer ? <Link href={`/agents/${job.buyer.id}`} className="text-ink underline-offset-4 hover:underline">{buyerLabel(job.buyer)}</Link> : "your agent"} for {formatUsdc(job.priceUsdc)}.
       </p>
 
       <div className="mt-12 grid gap-4 md:grid-cols-[2fr_1fr]">

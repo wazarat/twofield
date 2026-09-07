@@ -1,7 +1,7 @@
 import { desc, inArray } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { agents, jobs } from "@/db/schema";
+import { agents, jobs, users } from "@/db/schema";
 import { requirePlatformOwner } from "@/lib/platform";
 import { publicJob } from "@/lib/public-job";
 
@@ -16,7 +16,12 @@ export async function GET(request: Request) {
   const ids = [...new Set(rows.flatMap((r) => [r.buyerAgentId, r.sellerAgentId]))];
   const people = ids.length ? await db().select().from(agents).where(inArray(agents.id, ids)) : [];
   const byId = new Map(people.map((a) => [a.id, a]));
-  return NextResponse.json({ jobs: rows.map((r) => publicJob(r, byId.get(r.buyerAgentId), byId.get(r.sellerAgentId))) });
+  const ownerIds = [...new Set(rows.map((r) => r.ownerId))];
+  const owners = ownerIds.length ? await db().select().from(users).where(inArray(users.id, ownerIds)) : [];
+  const ownerById = new Map(owners.map((u) => [u.id, u]));
+  return NextResponse.json({
+    jobs: rows.map((r) => publicJob(r, byId.get(r.buyerAgentId), byId.get(r.sellerAgentId), [], ownerById.get(r.ownerId))),
+  });
 }
 
 export const dynamic = "force-dynamic";

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agents, type Agent } from "@/db/schema";
 import { validateAgentInput } from "@/lib/agents";
@@ -7,6 +7,17 @@ import { syncBuyerPolicy } from "@/lib/policies";
 import { topUp } from "@/lib/wallets";
 
 export class UpdateError extends AppError {}
+
+// Agent names are unique per account, case insensitive, archived agents included since
+// their receipts keep the name.
+export async function assertNameFree(ownerId: string, name: string, excludeId?: string) {
+  const rows = await db()
+    .select({ id: agents.id })
+    .from(agents)
+    .where(and(eq(agents.ownerId, ownerId), sql`lower(${agents.name}) = ${name.toLowerCase()}`, excludeId ? ne(agents.id, excludeId) : undefined))
+    .limit(1);
+  if (rows.length) throw new UpdateError(`You already have an agent named ${name}`, 409);
+}
 
 export type UpdateOutcome = { agent: Agent; topUpUsdc: string | null; policyRewritten: boolean };
 
@@ -27,6 +38,7 @@ export async function updateAgent(agent: Agent, body: unknown): Promise<UpdateOu
   });
   if (!parsed.ok) throw new UpdateError(parsed.error, 400);
   const next = parsed.value;
+  if (next.name.toLowerCase() !== agent.name.toLowerCase()) await assertNameFree(agent.ownerId, next.name, agent.id);
 
   const capChanged = next.maxBudgetPerJob !== Number(agent.maxBudgetPerJob);
   const raise = next.maxTotalBudget - Number(agent.maxTotalBudget);

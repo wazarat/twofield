@@ -13,7 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (result.response) return result.response;
   try {
     const job = await submitWork(result.job);
-    return NextResponse.json({ job: publicJob(job, result.buyer, result.seller) });
+    return NextResponse.json({ job: publicJob(job, result.buyer, result.seller, result.files, result.owner) });
   } catch (err) {
     if (err instanceof AppError) return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
     const message = err instanceof Error ? err.message : "Work failed";

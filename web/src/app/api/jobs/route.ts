@@ -7,6 +7,7 @@ import { validateContext } from "@/lib/context";
 import { AppError } from "@/lib/errors";
 import { fundJob, openJob } from "@/lib/jobs";
 import { publicJob } from "@/lib/public-job";
+import { getUser } from "@/lib/users";
 
 export const maxDuration = 120;
 
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
     if (!seller) throw new AppError("Specialist not found", 404);
     const pending = await openJob(auth.userId, buyer, seller, body.brief, attached.context, attached.files);
     const job = await fundJob(pending);
-    return NextResponse.json({ job: publicJob(job, buyer, seller) }, { status: 201 });
+    const owner = await getUser(auth.userId);
+    return NextResponse.json({ job: publicJob(job, buyer, seller, [], owner) }, { status: 201 });
   } catch (err) {
     if (err instanceof AppError) return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
     const message = err instanceof Error ? err.message : "Could not open the job";

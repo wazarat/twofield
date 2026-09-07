@@ -1,12 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { agents } from "@/db/schema";
+import { agents, previews } from "@/db/schema";
 import { buyPreview } from "@/lib/buyer-preview";
 import { AppError } from "@/lib/errors";
 import { appBaseUrl } from "@/lib/metadata";
 import { loadOwnedAgent } from "@/lib/owned-agent";
 import { previewBriefLimits } from "@/lib/preview";
+import { PREVIEW_PRICE_USDC } from "@/lib/x402";
 
 export const maxDuration = 120;
 
@@ -28,7 +29,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!seller) return NextResponse.json({ error: "Specialist not found" }, { status: 404 });
   try {
     const preview = await buyPreview(result.agent, seller, brief, appBaseUrl(request));
-    return NextResponse.json({ preview });
+    // Saved so the account's history keeps the pitch and its payment.
+    const amount = preview.payment.amount ? (Number(preview.payment.amount) / 1_000_000).toFixed(6) : PREVIEW_PRICE_USDC;
+    const [saved] = await db()
+      .insert(previews)
+      .values({
+        ownerId: result.agent.ownerId,
+        buyerAgentId: result.agent.id,
+        sellerAgentId: seller.id,
+        brief,
+        pitch: preview.pitch,
+        amountUsdc: amount,
+        paymentTx: preview.payment.transaction || null,
+        payer: preview.payment.payer ?? null,
+      })
+      .returning({ id: previews.id });
+    return NextResponse.json({ preview: { ...preview, id: saved.id } });
   } catch (err) {
     if (err instanceof AppError) return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
     const message = err instanceof Error ? err.message.split("\n")[0] : "Preview failed";

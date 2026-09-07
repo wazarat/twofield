@@ -4,16 +4,21 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
+import { explorerTx } from "@/lib/arc";
+import type { HistoryItem } from "@/lib/history";
 import type { PublicJob } from "@/lib/public-job";
 
 export function AgentJobs({ agentId }: { agentId: string }) {
   const [list, setList] = useState<PublicJob[] | null>(null);
+  const [previews, setPreviews] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
     let active = true;
-    api<{ jobs: PublicJob[] }>(`/api/jobs?agent=${agentId}`)
-      .then((d) => {
-        if (active) setList(d.jobs);
+    Promise.all([api<{ jobs: PublicJob[] }>(`/api/jobs?agent=${agentId}`), api<{ items: HistoryItem[] }>(`/api/history?agent=${agentId}`)])
+      .then(([j, h]) => {
+        if (!active) return;
+        setList(j.jobs);
+        setPreviews(h.items.filter((i) => i.kind === "preview"));
       })
       .catch(() => {
         if (active) setList([]);
@@ -49,6 +54,29 @@ export function AgentJobs({ agentId }: { agentId: string }) {
           ))}
         </ul>
       )}
+      {previews.length ? (
+        <>
+          <p className="mt-8 font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Previews</p>
+          <ul className="mt-4 divide-y divide-line">
+            {previews.map((p) => (
+              <li key={p.id} className="py-3">
+                <details>
+                  <summary className="flex cursor-pointer items-center justify-between gap-4">
+                    <span className="font-display text-lg font-medium tracking-[-0.02em]">{p.seller.name}</span>
+                    <span className="font-mono text-xs text-ink-muted">{formatUsdc(p.amountUsdc)}, paid over x402</span>
+                  </summary>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{p.pitch}</p>
+                  {p.tx ? (
+                    <a href={explorerTx(p.tx)} target="_blank" rel="noreferrer" className="mt-2 inline-block font-mono text-xs text-ink underline-offset-4 hover:underline">
+                      Settlement transaction
+                    </a>
+                  ) : null}
+                </details>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
     </div>
   );
 }

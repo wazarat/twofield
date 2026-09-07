@@ -11,9 +11,14 @@ export function NavLinks() {
   return (
     <nav className="hidden items-center gap-8 text-sm text-ink-muted md:flex">
       {ready && authenticated ? (
-        <Link href="/agents" className={link}>
-          Agents
-        </Link>
+        <>
+          <Link href="/agents" className={link}>
+            Agents
+          </Link>
+          <Link href="/history" className={link}>
+            History
+          </Link>
+        </>
       ) : null}
       {ready && isOwner ? (
         <Link href="/review" className={link}>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
-import type { PublicJob } from "@/lib/public-job";
+import { buyerLabel, type PublicJob } from "@/lib/public-job";
 import { Deliverable } from "@/components/deliverable";
 
 export function ReviewQueue() {
@@ -75,7 +75,7 @@ export function ReviewQueue() {
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">
-                {job.seller?.name} for {job.buyer?.name}
+                {job.seller?.name} for {buyerLabel(job.buyer)}
               </p>
               <h2 className="mt-2 font-display text-2xl font-medium tracking-[-0.03em]">
                 {formatUsdc(job.priceUsdc)} in escrow, ERC-8183 job {job.onchainJobId}
@@ -129,7 +129,7 @@ export function ReviewQueue() {
             {working.map((job) => (
               <li key={job.id} className="flex items-center justify-between gap-4 py-3">
                 <Link href={`/jobs/${job.id}`} className="font-display text-lg font-medium tracking-[-0.02em] hover:underline">
-                  {job.seller?.name} for {job.buyer?.name}
+                  {job.seller?.name} for {buyerLabel(job.buyer)}
                 </Link>
                 <span className="font-mono text-xs text-ink-muted">
                   {formatUsdc(job.priceUsdc)}, {job.lastError ? "stopped, open to retry" : job.status}

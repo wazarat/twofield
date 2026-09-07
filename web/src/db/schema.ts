@@ -119,3 +119,23 @@ export const jobFiles = pgTable("job_files", {
 });
 
 export type JobFile = typeof jobFiles.$inferSelect;
+
+// A paid x402 preview. Saved so the account's history shows every buy.
+export const previews = pgTable("previews", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id").notNull(),
+  buyerAgentId: uuid("buyer_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  sellerAgentId: uuid("seller_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  brief: text("brief").notNull(),
+  pitch: text("pitch").notNull(),
+  amountUsdc: numeric("amount_usdc", { precision: 18, scale: 6 }).notNull(),
+  paymentTx: text("payment_tx"),
+  payer: text("payer"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Preview = typeof previews.$inferSelect;

@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { agents } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { validateAgentInput } from "@/lib/agents";
+import { assertNameFree } from "@/lib/agent-updates";
+import { AppError } from "@/lib/errors";
 
 export async function GET(request: Request) {
   const auth = await requireUser(request);
@@ -26,6 +28,12 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = validateAgentInput(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  try {
+    await assertNameFree(auth.userId, parsed.value.name);
+  } catch (err) {
+    if (err instanceof AppError) return NextResponse.json({ error: err.message }, { status: err.status });
+    throw err;
+  }
 
   const [row] = await db()
     .insert(agents)
