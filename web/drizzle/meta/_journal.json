@@ -50,6 +50,13 @@
       "when": 1788779106628,
       "tag": "0006_wealthy_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788779761030,
+      "tag": "0007_productive_red_ghost",
+      "breakpoints": true
     }
   ]
 }

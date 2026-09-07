@@ -1,6 +1,7 @@
 import { and, eq, gte, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { agents, jobs, type Agent, type Job, type JobPeriod } from "@/db/schema";
+import { agents, jobFiles, jobs, type Agent, type Job, type JobPeriod } from "@/db/schema";
+import { fileBytes, type ContextFile } from "@/lib/context";
 import { jobRate } from "@/lib/agents";
 import { JOB_GAS_RESERVE_USDC, fromWei, publicClient, toUsdc6, toWei } from "@/lib/arc";
 import { AppError } from "@/lib/errors";
@@ -42,7 +43,7 @@ export async function countJobsInWindow(buyerAgentId: string, period: JobPeriod)
 }
 
 // Validates the hire and inserts the pending row. No chain calls here.
-export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brief: string) {
+export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brief: string, context = "", files: ContextFile[] = []) {
   if (buyer.ownerId !== ownerId || buyer.kind !== "buyer") throw new JobError("Buyer agent not found", 404);
   if (seller.kind !== "seller" || seller.status !== "registered" || !seller.priceUsdc) {
     throw new JobError("This specialist is not available", 409);
@@ -69,8 +70,15 @@ export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brie
 
   const [row] = await db()
     .insert(jobs)
-    .values({ ownerId, buyerAgentId: buyer.id, sellerAgentId: seller.id, brief: text, priceUsdc: seller.priceUsdc })
+    .values({ ownerId, buyerAgentId: buyer.id, sellerAgentId: seller.id, brief: text, context: context || null, priceUsdc: seller.priceUsdc })
     .returning();
+  // The http driver has no transactions. A failed file insert leaves a pending job
+  // with no escrow, which the owner sees as a stalled job and can retry.
+  if (files.length) {
+    await db()
+      .insert(jobFiles)
+      .values(files.map((f) => ({ jobId: row.id, name: f.name, bytes: fileBytes(f.content), content: f.content })));
+  }
   return row;
 }
 
@@ -124,4 +132,8 @@ export async function fundJob(job: Job) {
     const message = err instanceof Error ? err.message.split("\n")[0].slice(0, 300) : "Escrow step failed";
     return save(job.id, { lastError: message });
   }
+}
+
+export async function loadJobFiles(jobId: string) {
+  return db().select().from(jobFiles).where(eq(jobFiles.jobId, jobId)).orderBy(jobFiles.createdAt);
 }

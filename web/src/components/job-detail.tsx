@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
 import { AGENTIC_COMMERCE, explorerAddress, explorerTx } from "@/lib/arc";
+import { formatBytes } from "@/lib/context";
 import type { PublicJob } from "@/lib/public-job";
 import { Deliverable } from "@/components/deliverable";
 
@@ -181,6 +182,30 @@ export function JobDetail({ id }: { id: string }) {
           <div className="rounded-panel border border-line bg-card p-8">
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Brief</p>
             <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{job.brief}</p>
+            {job.context ? (
+              <>
+                <p className="mt-8 font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Context</p>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{job.context}</p>
+              </>
+            ) : null}
+            {job.files?.length ? (
+              <>
+                <p className="mt-8 font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Files</p>
+                <ul className="mt-4 divide-y divide-line rounded-card border border-line">
+                  {job.files.map((f) => (
+                    <li key={f.id}>
+                      <details>
+                        <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 font-mono text-xs">
+                          <span className="truncate">{f.name}</span>
+                          <span className="shrink-0 text-ink-muted">{formatBytes(f.bytes)}</span>
+                        </summary>
+                        <pre className="max-h-96 overflow-auto border-t border-line bg-bg px-4 py-3 font-mono text-xs leading-relaxed text-ink-muted">{f.content}</pre>
+                      </details>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </div>
         </div>
 

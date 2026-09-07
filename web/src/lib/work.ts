@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Agent, Job } from "@/db/schema";
+import { contextForPrompt, type ContextFile } from "@/lib/context";
 import { nichePackSections } from "@/lib/sellers";
 
 let cached: Anthropic | undefined;
@@ -24,6 +25,7 @@ function systemPrompt(seller: Agent) {
     "",
     "You are writing a personal brand niche pack for one person in fintech, from the brief they filed.",
     "Write in the voice described above. Be concrete, use the details in the brief, and avoid generic advice.",
+    "Use the context the buyer attached where it is relevant and name the file you drew from.",
     "Return Markdown with exactly these six second level headings, in this order, and nothing before the first heading.",
     sections,
     "",
@@ -35,7 +37,8 @@ function systemPrompt(seller: Agent) {
 }
 
 // Generates the deliverable text for a funded job.
-export async function generateDeliverable(job: Job, seller: Agent, buyer: Agent) {
+export async function generateDeliverable(job: Job, seller: Agent, buyer: Agent, files: ContextFile[] = []) {
+  const context = contextForPrompt(job.context, files);
   const response = await client().beta.messages.create({
     model: "claude-opus-5",
     max_tokens: 16000,
@@ -46,7 +49,7 @@ export async function generateDeliverable(job: Job, seller: Agent, buyer: Agent)
     messages: [
       {
         role: "user",
-        content: `Brief filed by the buyer agent ${buyer.name} on behalf of its user.\n\n${job.brief}`,
+        content: `Brief filed by the buyer agent ${buyer.name} on behalf of its user.\n\n${job.brief}${context ? `\n\n${context}` : ""}`,
       },
     ],
   });

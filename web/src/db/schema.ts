@@ -82,6 +82,8 @@ export const jobs = pgTable("jobs", {
     .notNull()
     .references(() => agents.id),
   brief: text("brief").notNull(),
+  // Pasted context, optional. Attached files live in job_files.
+  context: text("context"),
   priceUsdc: numeric("price_usdc", { precision: 18, scale: 6 }).notNull(),
   status: text("status", { enum: jobStatuses }).notNull().default("pending"),
   lastError: text("last_error"),
@@ -104,3 +106,16 @@ export const jobs = pgTable("jobs", {
 
 export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
+
+export const jobFiles = pgTable("job_files", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  jobId: uuid("job_id")
+    .notNull()
+    .references(() => jobs.id),
+  name: text("name").notNull(),
+  bytes: integer("bytes").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type JobFile = typeof jobFiles.$inferSelect;

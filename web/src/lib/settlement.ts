@@ -6,6 +6,7 @@ import { AGENTIC_COMMERCE, publicClient } from "@/lib/arc";
 import { AppError } from "@/lib/errors";
 import { escrowAbi, walletClientFor, type WalletRef } from "@/lib/escrow";
 import { evaluatorWallet } from "@/lib/privy";
+import { loadJobFiles } from "@/lib/jobs";
 import { generateDeliverable } from "@/lib/work";
 
 export class SettlementError extends AppError {}
@@ -50,7 +51,8 @@ export async function submitWork(job: Job) {
   try {
     if (!current.deliverable) {
       current = await save(job.id, { status: "generating", lastError: null });
-      const text = await generateDeliverable(current, seller, buyer);
+      const files = await loadJobFiles(job.id);
+      const text = await generateDeliverable(current, seller, buyer, files);
       current = await save(job.id, { deliverable: text, deliverableHash: keccak256(toHex(text)) });
     }
     const hash = await walletClientFor(wallet).writeContract({

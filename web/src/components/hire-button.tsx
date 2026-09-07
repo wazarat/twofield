@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import type { Agent } from "@/db/schema";
 import { formatUsdc } from "@/lib/agents";
 import { ApiError, api } from "@/lib/api";
+import { acceptList, contextLimits, fileBytes, formatBytes, validateContext, type ContextFile } from "@/lib/context";
 import type { PublicJob } from "@/lib/public-job";
 
 const field =
@@ -18,6 +19,8 @@ export function HireButton({ sellerId, sellerName, priceUsdc, size = "sm" }: { s
   const [buyers, setBuyers] = useState<Agent[] | null>(null);
   const [buyerId, setBuyerId] = useState("");
   const [brief, setBrief] = useState("");
+  const [context, setContext] = useState("");
+  const [files, setFiles] = useState<ContextFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,14 +35,32 @@ export function HireButton({ sellerId, sellerName, priceUsdc, size = "sm" }: { s
       .catch(() => setBuyers([]));
   }, [open, buyers]);
 
+  async function addFiles(list: FileList | null) {
+    if (!list) return;
+    setError(null);
+    const picked = await Promise.all(Array.from(list).map(async (f) => ({ name: f.name, content: await f.text() })));
+    const next = [...files.filter((f) => !picked.some((p) => p.name === f.name)), ...picked];
+    const check = validateContext({ context, files: next });
+    if (!check.ok) {
+      setError(check.error);
+      return;
+    }
+    setFiles(next);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError(null);
+    const check = validateContext({ context, files });
+    if (!check.ok) {
+      setError(check.error);
+      return;
+    }
+    setBusy(true);
     try {
       const { job } = await api<{ job: PublicJob }>("/api/jobs", {
         method: "POST",
-        body: JSON.stringify({ buyerAgentId: buyerId, sellerAgentId: sellerId, brief }),
+        body: JSON.stringify({ buyerAgentId: buyerId, sellerAgentId: sellerId, brief, context: check.context, files: check.files }),
       });
       router.push(`/jobs/${job.id}`);
     } catch (err) {
@@ -107,6 +128,44 @@ export function HireButton({ sellerId, sellerName, priceUsdc, size = "sm" }: { s
               />
               <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">40 to 2000 characters</span>
             </label>
+
+            <label className="mt-5 block text-sm font-medium">
+              Context, optional
+              <textarea
+                className={`${field} mt-2 min-h-20 resize-y`}
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                maxLength={contextLimits.contextMax}
+                placeholder="Notes, past posts, a bio draft, anything the specialist should read."
+              />
+            </label>
+
+            <div className="mt-5 text-sm font-medium">
+              Files, optional
+              <label className="mt-2 block cursor-pointer rounded-xl border border-dashed border-line-strong px-4 py-3 text-center text-sm font-normal text-ink-muted transition hover:border-ink">
+                Add text files, code, markdown, csv or json
+                <input type="file" multiple accept={acceptList} className="hidden" onChange={(e) => addFiles(e.target.files).then(() => (e.target.value = ""))} />
+              </label>
+              {files.length ? (
+                <ul className="mt-2 divide-y divide-line rounded-xl border border-line">
+                  {files.map((f) => (
+                    <li key={f.name} className="flex items-center justify-between gap-3 px-4 py-2 font-mono text-xs">
+                      <span className="truncate">{f.name}</span>
+                      <span className="flex shrink-0 items-center gap-3 text-ink-muted">
+                        {formatBytes(fileBytes(f.content))}
+                        <button type="button" onClick={() => setFiles(files.filter((x) => x.name !== f.name))} className="text-ink underline-offset-4 hover:underline">
+                          Remove
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <span className="mt-1 block font-mono text-[11px] font-normal text-ink-faint">
+                Up to {contextLimits.maxFiles} files, {formatBytes(contextLimits.maxFileBytes)} each, {formatBytes(contextLimits.maxTotalBytes)} in total.
+                {files.length ? ` Attached ${formatBytes(files.reduce((n, f) => n + fileBytes(f.content), 0))}.` : ""}
+              </span>
+            </div>
 
             {error ? <p className="mt-4 text-sm">{error}</p> : null}
 
