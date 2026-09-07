@@ -9,7 +9,9 @@ function client() {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("ANTHROPIC_API_KEY is not set. Add it to web/.env.local or the Vercel project.");
   }
-  cached = new Anthropic();
+  // Organization level keys must name a workspace. Workspace scoped keys do not.
+  const workspace = process.env.ANTHROPIC_WORKSPACE_ID;
+  cached = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : undefined);
   return cached;
 }
 

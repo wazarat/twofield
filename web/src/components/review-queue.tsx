@@ -67,7 +67,7 @@ export function ReviewQueue() {
       {waiting.length === 0 ? (
         <div className="rounded-panel border border-dashed border-line-strong p-8">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Nothing to review</p>
-          <p className="mt-3 text-sm text-ink-muted">Submitted work appears here. {working.length ? `${working.length} in progress.` : ""}</p>
+          <p className="mt-3 text-sm text-ink-muted">Submitted work appears here once a specialist finishes.</p>
         </div>
       ) : null}
       {waiting.map((job) => (
@@ -122,8 +122,22 @@ export function ReviewQueue() {
           </div>
         </div>
       ))}
-      {working.length && waiting.length ? (
-        <p className="font-mono text-xs text-ink-muted">{working.length} more in progress.</p>
+      {working.length ? (
+        <div className="rounded-panel border border-line bg-card p-8">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">In progress</p>
+          <ul className="mt-4 divide-y divide-line">
+            {working.map((job) => (
+              <li key={job.id} className="flex items-center justify-between gap-4 py-3">
+                <Link href={`/jobs/${job.id}`} className="font-display text-lg font-medium tracking-[-0.02em] hover:underline">
+                  {job.seller?.name} for {job.buyer?.name}
+                </Link>
+                <span className="font-mono text-xs text-ink-muted">
+                  {formatUsdc(job.priceUsdc)}, {job.lastError ? "stopped, open to retry" : job.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   );
