@@ -11,6 +11,17 @@ export const AGENTIC_COMMERCE = "0x0747EEf0706327138c69792bF28Cd525089e4583" as 
 export const USDC = "0x3600000000000000000000000000000000000000" as const;
 export const GAS_BUFFER_USDC = "0.1";
 export const SELLER_GAS_USDC = "0.05";
+export const EVALUATOR_GAS_USDC = "0.2";
+export const JOB_GAS_RESERVE_USDC = "0.02";
+
+// USDC on the ERC-20 interface uses 6 decimals.
+export function toUsdc6(usdc: string | number) {
+  return parseUnits(String(usdc), 6);
+}
+
+export function fromUsdc6(units: bigint) {
+  return formatUnits(units, 6);
+}
 export const MASTER_RESERVE_USDC = "0.02";
 
 const explorer = "https://testnet.arcscan.app";

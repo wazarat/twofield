@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatUsdc } from "@/lib/agents";
 import type { PublicSeller } from "@/lib/public-seller";
+import { HireButton } from "@/components/hire-button";
 
 export function SellerCard({ seller }: { seller: PublicSeller }) {
   return (
@@ -27,14 +28,7 @@ export function SellerCard({ seller }: { seller: PublicSeller }) {
             {seller.attestedAt ? "Attested" : "Unattested"}
           </span>
         </div>
-        <button
-          type="button"
-          disabled
-          className="rounded-full border border-ink px-4 py-2 text-sm font-medium opacity-40"
-          title="Jobs arrive in the next milestone"
-        >
-          Hire
-        </button>
+        <HireButton sellerId={seller.id} sellerName={seller.name} priceUsdc={seller.priceUsdc} />
       </div>
     </div>
   );

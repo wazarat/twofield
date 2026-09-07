@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { StatusPill } from "@/components/status-pill";
 import { WalletPanel } from "@/components/wallet-panel";
 import { IdentityPanel } from "@/components/identity-panel";
+import { AgentJobs } from "@/components/agent-jobs";
 
 export function AgentDetail({ id }: { id: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -59,6 +60,7 @@ export function AgentDetail({ id }: { id: string }) {
       {agent.description ? <p className="mt-4 max-w-2xl text-lg text-ink-muted">{agent.description}</p> : null}
 
       <div className="mt-12 grid gap-4 md:grid-cols-[2fr_1fr]">
+        <div className="flex flex-col gap-4">
         <div className="rounded-panel border border-line bg-card p-8">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Setup</p>
           <ol className="mt-6 divide-y divide-line">
@@ -76,6 +78,8 @@ export function AgentDetail({ id }: { id: string }) {
               <IdentityPanel agent={agent} onUpdated={setAgent} />
             </li>
           </ol>
+        </div>
+        {agent.status !== "draft" ? <AgentJobs agentId={agent.id} /> : null}
         </div>
         <div className="rounded-panel border border-line bg-card p-8">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Budgets</p>

@@ -1,0 +1,121 @@
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { agents, jobs, type Agent, type Job } from "@/db/schema";
+import { JOB_GAS_RESERVE_USDC, fromWei, publicClient, toUsdc6, toWei } from "@/lib/arc";
+import { AppError } from "@/lib/errors";
+import { escrowApprove, escrowCreateJob, escrowFund, escrowSetBudget, type WalletRef } from "@/lib/escrow";
+import { ensureBuyerPolicy } from "@/lib/policies";
+import { evaluatorWallet } from "@/lib/privy";
+
+export class JobError extends AppError {}
+
+export const briefLimits = { min: 40, max: 2000 };
+export const activeJobStatuses = ["pending", "created", "budgeted", "funded", "generating", "submitted", "approved"] as const;
+
+const JOB_TTL_SECONDS = 24 * 60 * 60;
+
+async function save(id: string, patch: Partial<Job>) {
+  const [row] = await db()
+    .update(jobs)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(jobs.id, id))
+    .returning();
+  return row;
+}
+
+function walletRef(agent: Agent, label: string): WalletRef {
+  if (!agent.walletId || !agent.walletAddress) throw new JobError(`${label} has no wallet`, 409);
+  return { id: agent.walletId, address: agent.walletAddress as `0x${string}` };
+}
+
+export async function countActiveJobs(buyerAgentId: string) {
+  const rows = await db()
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.buyerAgentId, buyerAgentId), inArray(jobs.status, [...activeJobStatuses])));
+  return rows.length;
+}
+
+// Validates the hire and inserts the pending row. No chain calls here.
+export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brief: string) {
+  if (buyer.ownerId !== ownerId || buyer.kind !== "buyer") throw new JobError("Buyer agent not found", 404);
+  if (seller.kind !== "seller" || seller.status !== "registered" || !seller.priceUsdc) {
+    throw new JobError("This specialist is not available", 409);
+  }
+  if (buyer.status === "draft") throw new JobError("Create the buyer agent's wallet first", 409);
+  const text = brief.trim();
+  if (text.length < briefLimits.min) throw new JobError(`The brief needs at least ${briefLimits.min} characters`, 400);
+  if (text.length > briefLimits.max) throw new JobError(`The brief must be ${briefLimits.max} characters or fewer`, 400);
+  if (Number(seller.priceUsdc) > Number(buyer.maxBudgetPerJob)) {
+    throw new JobError(`This specialist costs more than the agent's max budget per job of ${buyer.maxBudgetPerJob} USDC`, 400);
+  }
+  const active = await countActiveJobs(buyer.id);
+  if (active >= buyer.maxJobs) throw new JobError(`This agent already has its maximum of ${buyer.maxJobs} jobs`, 400);
+
+  const balance = await publicClient.getBalance({ address: buyer.walletAddress as `0x${string}` });
+  const needed = toWei(seller.priceUsdc) + toWei(JOB_GAS_RESERVE_USDC);
+  if (balance < needed) {
+    throw new JobError("The buyer agent's wallet cannot cover this job", 400, {
+      balance: fromWei(balance),
+      needed: fromWei(needed),
+    });
+  }
+
+  const [row] = await db()
+    .insert(jobs)
+    .values({ ownerId, buyerAgentId: buyer.id, sellerAgentId: seller.id, brief: text, priceUsdc: seller.priceUsdc })
+    .returning();
+  return row;
+}
+
+// Runs the escrow steps up to funded. Safe to call again after a failure, it
+// resumes from the last saved step.
+export async function fundJob(job: Job) {
+  if (!["pending", "created", "budgeted", "failed"].includes(job.status)) return job;
+  const [buyer] = await db().select().from(agents).where(eq(agents.id, job.buyerAgentId)).limit(1);
+  const [seller] = await db().select().from(agents).where(eq(agents.id, job.sellerAgentId)).limit(1);
+  const buyerWallet = walletRef(buyer, "Buyer agent");
+  const sellerWallet = walletRef(seller, "Specialist");
+  const amount6 = toUsdc6(job.priceUsdc);
+  let current = job;
+
+  try {
+    await ensureBuyerPolicy(buyer);
+
+    if (!current.onchainJobId) {
+      const expiresAt = BigInt(Math.floor(Date.now() / 1000) + JOB_TTL_SECONDS);
+      const { hash, jobId } = await escrowCreateJob(
+        buyerWallet,
+        sellerWallet.address,
+        evaluatorWallet().address,
+        expiresAt,
+        `twofield job ${job.id}`,
+      );
+      current = await save(job.id, {
+        onchainJobId: jobId.toString(),
+        createTx: hash,
+        expiresAt: new Date(Number(expiresAt) * 1000),
+        status: "created",
+        lastError: null,
+      });
+    }
+    const onchainId = BigInt(current.onchainJobId!);
+
+    if (!current.budgetTx) {
+      const hash = await escrowSetBudget(sellerWallet, onchainId, amount6);
+      current = await save(job.id, { budgetTx: hash, status: "budgeted", lastError: null });
+    }
+    if (!current.approveTx) {
+      const hash = await escrowApprove(buyerWallet, amount6);
+      current = await save(job.id, { approveTx: hash, lastError: null });
+    }
+    if (!current.fundTx) {
+      const hash = await escrowFund(buyerWallet, onchainId);
+      current = await save(job.id, { fundTx: hash, status: "funded", lastError: null });
+    }
+    return current;
+  } catch (err) {
+    const message = err instanceof Error ? err.message.split("\n")[0].slice(0, 300) : "Escrow step failed";
+    return save(job.id, { lastError: message });
+  }
+}

@@ -22,6 +22,13 @@ export function authorizationContext() {
   return { authorization_private_keys: [required("PRIVY_AUTHORIZATION_KEY")] };
 }
 
+export function evaluatorWallet() {
+  return {
+    id: required("EVALUATOR_WALLET_ID"),
+    address: required("EVALUATOR_WALLET_ADDRESS") as `0x${string}`,
+  };
+}
+
 export function masterWallet() {
   return {
     id: required("MASTER_WALLET_ID"),

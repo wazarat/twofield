@@ -7,6 +7,7 @@ import { IDENTITY_REGISTRY, explorerAddress, explorerTx } from "@/lib/arc";
 import { getCategory } from "@/lib/categories";
 import type { PublicSeller } from "@/lib/public-seller";
 import { nichePackSections } from "@/lib/sellers";
+import { HireButton } from "@/components/hire-button";
 
 function shorten(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -83,14 +84,9 @@ export function SellerDetail({ id }: { id: string }) {
           <div className="rounded-panel border border-line bg-card p-8">
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Price per job</p>
             <p className="mt-4 font-display text-3xl font-medium tracking-[-0.03em]">{formatUsdc(seller.priceUsdc)}</p>
-            <button
-              type="button"
-              disabled
-              className="mt-6 rounded-full border border-ink px-5 py-2 text-sm font-medium opacity-40"
-              title="Jobs arrive in the next milestone"
-            >
-              Hire
-            </button>
+            <div className="mt-6">
+              <HireButton sellerId={seller.id} sellerName={seller.name} priceUsdc={seller.priceUsdc} size="lg" />
+            </div>
           </div>
           <div className="rounded-panel border border-line bg-card p-8 font-mono text-xs text-ink-muted">
             <p className="uppercase tracking-[0.2em]">Onchain</p>

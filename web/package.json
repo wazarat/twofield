@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "auth:key": "node --no-warnings scripts/generate-auth-key.ts",
     "wallet:master": "node --no-warnings --env-file=.env.local scripts/create-master-wallet.ts",
-    "sellers:seed": "node --no-warnings --experimental-transform-types --env-file=.env.local --import ./scripts/register-alias.mjs scripts/seed-sellers.ts"
+    "sellers:seed": "node --no-warnings --experimental-transform-types --env-file=.env.local --import ./scripts/register-alias.mjs scripts/seed-sellers.ts",
+    "wallet:evaluator": "node --no-warnings --experimental-transform-types --env-file=.env.local --import ./scripts/register-alias.mjs scripts/create-evaluator-wallet.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

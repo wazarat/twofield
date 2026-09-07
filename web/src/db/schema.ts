@@ -34,8 +34,56 @@ export const agents = pgTable("agents", {
   validationRequestHash: text("validation_request_hash"),
   reputationCount: integer("reputation_count").notNull().default(0),
   reputationScore: numeric("reputation_score", { precision: 8, scale: 2 }),
+  policyVersion: integer("policy_version").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type Agent = typeof agents.$inferSelect;
 export type NewAgent = typeof agents.$inferInsert;
+
+export const jobStatuses = [
+  "pending",
+  "created",
+  "budgeted",
+  "funded",
+  "generating",
+  "submitted",
+  "approved",
+  "rejected",
+  "refunded",
+  "failed",
+] as const;
+export type JobStatus = (typeof jobStatuses)[number];
+
+export const jobs = pgTable("jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id").notNull(),
+  buyerAgentId: uuid("buyer_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  sellerAgentId: uuid("seller_agent_id")
+    .notNull()
+    .references(() => agents.id),
+  brief: text("brief").notNull(),
+  priceUsdc: numeric("price_usdc", { precision: 18, scale: 6 }).notNull(),
+  status: text("status", { enum: jobStatuses }).notNull().default("pending"),
+  lastError: text("last_error"),
+  onchainJobId: text("onchain_job_id"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createTx: text("create_tx"),
+  budgetTx: text("budget_tx"),
+  approveTx: text("approve_tx"),
+  fundTx: text("fund_tx"),
+  submitTx: text("submit_tx"),
+  settleTx: text("settle_tx"),
+  refundTx: text("refund_tx"),
+  feedbackTx: text("feedback_tx"),
+  deliverable: text("deliverable"),
+  deliverableHash: text("deliverable_hash"),
+  reviewNote: text("review_note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Job = typeof jobs.$inferSelect;
+export type NewJob = typeof jobs.$inferInsert;
