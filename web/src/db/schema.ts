@@ -8,6 +8,15 @@ export type AgentKind = (typeof agentKinds)[number];
 
 export const PLATFORM_OWNER = "platform";
 
+// One row per signed in account, keyed by the Privy DID. The username is public.
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type User = typeof users.$inferSelect;
+
 export const agents = pgTable("agents", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerId: text("owner_id").notNull(),

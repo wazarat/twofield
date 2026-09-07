@@ -9,10 +9,12 @@ import { StatusPill } from "@/components/status-pill";
 import { WalletPanel } from "@/components/wallet-panel";
 import { IdentityPanel } from "@/components/identity-panel";
 import { AgentJobs } from "@/components/agent-jobs";
+import { useCurrentUser } from "@/components/user-context";
 
 export function AgentDetail({ id }: { id: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { user: me } = useCurrentUser();
 
   useEffect(() => {
     let active = true;
@@ -58,6 +60,7 @@ export function AgentDetail({ id }: { id: string }) {
         <StatusPill status={agent.status} />
       </div>
       {agent.description ? <p className="mt-4 max-w-2xl text-lg text-ink-muted">{agent.description}</p> : null}
+      {me && me.id === agent.ownerId ? <p className="mt-3 font-mono text-xs text-ink-muted">Run by {me.username}</p> : null}
 
       <div className="mt-12 grid gap-4 md:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-4">

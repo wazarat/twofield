@@ -1,6 +1,7 @@
 "use client";
 
 import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { UsernameGate } from "@/components/username-gate";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { ready, authenticated } = usePrivy();
@@ -18,7 +19,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           Sign in to browse specialists
         </h2>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted">
-          Email or Google is all it takes. No wallet setup, no gas, no seed phrase.
+          Email is all it takes. No wallet setup, no gas, no seed phrase.
         </p>
         <button
           type="button"
@@ -31,5 +32,5 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <UsernameGate>{children}</UsernameGate>;
 }

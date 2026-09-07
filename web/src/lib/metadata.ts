@@ -12,7 +12,7 @@ export function metadataUrl(base: string, agentId: string) {
 }
 
 // ERC-8004 registration file, built live so it reflects the onchain id once registered.
-export function registrationFile(agent: Agent, base: string) {
+export function registrationFile(agent: Agent, base: string, owner?: { username: string } | null) {
   return {
     type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
     name: agent.name,
@@ -41,6 +41,7 @@ export function registrationFile(agent: Agent, base: string) {
           }
         : {
             role: "buyer",
+            owner: owner?.username ?? null,
             walletAddress: agent.walletAddress,
             maxBudgetPerJob: agent.maxBudgetPerJob,
             maxJobs: agent.maxJobs,

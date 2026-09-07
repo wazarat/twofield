@@ -1,6 +1,7 @@
 "use client";
 
 import { PrivyProvider } from "@privy-io/react-auth";
+import { UserProvider } from "@/components/user-context";
 
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
@@ -13,7 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={appId as string}
       config={{
-        loginMethods: ["email", "google"],
+        loginMethods: ["email"],
         embeddedWallets: {
           ethereum: { createOnLogin: "users-without-wallets" },
         },
@@ -23,7 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      {children}
+      <UserProvider>{children}</UserProvider>
     </PrivyProvider>
   );
 }

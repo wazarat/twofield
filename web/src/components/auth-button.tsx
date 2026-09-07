@@ -2,11 +2,13 @@
 
 import { useLogin, usePrivy } from "@privy-io/react-auth";
 import { usePathname, useRouter } from "next/navigation";
+import { useCurrentUser } from "@/components/user-context";
 
 const pill = "rounded-full px-5 py-2 text-sm font-medium transition";
 
 export function AuthButton() {
   const { ready, authenticated, user, logout } = usePrivy();
+  const { user: me } = useCurrentUser();
   const router = useRouter();
   const pathname = usePathname();
   const { login } = useLogin({
@@ -27,7 +29,7 @@ export function AuthButton() {
     );
   }
 
-  const label = user?.email?.address ?? user?.google?.email ?? "Signed in";
+  const label = me?.username ?? user?.email?.address ?? "Signed in";
 
   return (
     <div className="flex items-center gap-3">
