@@ -44,6 +44,8 @@ export const agents = pgTable("agents", {
   reputationCount: integer("reputation_count").notNull().default(0),
   reputationScore: numeric("reputation_score", { precision: 8, scale: 2 }),
   policyVersion: integer("policy_version").notNull().default(1),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  sweepTx: text("sweep_tx"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

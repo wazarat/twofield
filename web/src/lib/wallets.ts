@@ -20,6 +20,8 @@ import {
   SELLER_GAS_USDC,
   VALIDATION_REGISTRY,
 } from "@/lib/arc";
+import { walletClientFor } from "@/lib/escrow";
+import { ensureBuyerPolicy } from "@/lib/policies";
 import { authorizationContext, masterWallet, ownerPublicKey, privy } from "@/lib/privy";
 
 export class WalletError extends AppError {}
@@ -117,6 +119,7 @@ async function fund(agent: Agent, to: `0x${string}`, options: WalletOptions) {
 // completes so a retry after a failure resumes instead of creating duplicates.
 export async function createAgentWallet(agent: Agent, options: WalletOptions = walletOptionsFor(agent)) {
   if (agent.status !== "draft") throw new WalletError("This agent already has a wallet", 409);
+  if (agent.archivedAt) throw new WalletError("This agent is archived", 409);
   const policyId = await ensurePolicy(agent, options);
   const wallet = await ensureWallet(agent, policyId);
   const hash = await fund(agent, wallet.address, options);
@@ -126,4 +129,29 @@ export async function createAgentWallet(agent: Agent, options: WalletOptions = w
 export async function agentBalance(address: string) {
   const wei = await publicClient.getBalance({ address: address as `0x${string}` });
   return fromWei(wei);
+}
+
+// Sends everything but the transfer fee back to the master wallet. Returns the hash, or
+// null when the balance does not cover a transfer. The wallet policy must be v5 or later.
+export async function sweepToMaster(agent: Agent) {
+  if (!agent.walletId || !agent.walletAddress) return null;
+  const current = await ensureBuyerPolicy(agent);
+  const address = current.walletAddress as `0x${string}`;
+  const balance = await publicClient.getBalance({ address });
+  const fees = await publicClient.estimateFeesPerGas();
+  const gas = BigInt(21000);
+  const fee = (gas * fees.maxFeePerGas * BigInt(120)) / BigInt(100);
+  if (balance <= fee) return null;
+
+  const hash = await walletClientFor({ id: current.walletId!, address }).sendTransaction({
+    to: masterWallet().address,
+    value: balance - fee,
+    gas,
+    maxFeePerGas: fees.maxFeePerGas,
+    maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") throw new WalletError("The return transfer reverted", 502, { tx: hash });
+  await save(agent.id, { sweepTx: hash });
+  return hash;
 }

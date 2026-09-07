@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Agent } from "@/db/schema";
 import { api } from "@/lib/api";
@@ -8,13 +9,16 @@ import { AgentForm } from "@/components/agent-form";
 
 export function AgentList() {
   const [agents, setAgents] = useState<Agent[] | null>(null);
+  const [archived, setArchived] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    api<{ agents: Agent[] }>("/api/agents")
-      .then((data) => {
-        if (active) setAgents(data.agents);
+    Promise.all([api<{ agents: Agent[] }>("/api/agents"), api<{ agents: Agent[] }>("/api/agents?archived=1")])
+      .then(([live, gone]) => {
+        if (!active) return;
+        setAgents(live.agents);
+        setArchived(gone.agents);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Could not load agents");
@@ -41,6 +45,25 @@ export function AgentList() {
           </div>
         ) : null}
         {agents?.map((agent) => <AgentCard key={agent.id} agent={agent} />)}
+        {archived.length ? (
+          <details className="rounded-card border border-line bg-card/60 p-6">
+            <summary className="cursor-pointer font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">
+              Archived, {archived.length}
+            </summary>
+            <ul className="mt-4 divide-y divide-line">
+              {archived.map((agent) => (
+                <li key={agent.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+                  <Link href={`/agents/${agent.id}`} className="font-medium text-ink underline-offset-4 hover:underline">
+                    {agent.name}
+                  </Link>
+                  <span className="font-mono text-xs text-ink-muted">
+                    {agent.archivedAt ? new Date(agent.archivedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </div>
       <AgentForm onCreated={(agent) => setAgents((prev) => [agent, ...(prev ?? [])])} />
     </div>

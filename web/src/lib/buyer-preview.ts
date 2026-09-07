@@ -23,6 +23,7 @@ export type PreviewResult = {
 // signs the USDC authorization, the platform settles it, and the pitch comes back.
 export async function buyPreview(buyer: Agent, seller: Agent, brief: string, base: string): Promise<PreviewResult> {
   if (!buyer.walletId || !buyer.walletAddress) throw new PreviewError("The buyer agent has no wallet", 409);
+  if (buyer.archivedAt) throw new PreviewError("This agent is archived and cannot buy previews", 409);
   await ensureBuyerPolicy(buyer);
 
   // Same wiring as Privy's createX402Client, without its Solana import.

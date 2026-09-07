@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Agent } from "@/db/schema";
 import { formatUsdc } from "@/lib/agents";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
+import { explorerTx } from "@/lib/arc";
 import { StatusPill } from "@/components/status-pill";
 import { WalletPanel } from "@/components/wallet-panel";
 import { IdentityPanel } from "@/components/identity-panel";
@@ -15,6 +16,24 @@ export function AgentDetail({ id }: { id: string }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { user: me } = useCurrentUser();
+  const [confirming, setConfirming] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+
+  async function archive() {
+    if (!agent) return;
+    setArchiving(true);
+    setArchiveError(null);
+    try {
+      const data = await api<{ agent: Agent }>(`/api/agents/${agent.id}/archive`, { method: "POST" });
+      setAgent(data.agent);
+      setConfirming(false);
+    } catch (err) {
+      setArchiveError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -61,6 +80,31 @@ export function AgentDetail({ id }: { id: string }) {
       </div>
       {agent.description ? <p className="mt-4 max-w-2xl text-lg text-ink-muted">{agent.description}</p> : null}
       {me && me.id === agent.ownerId ? <p className="mt-3 font-mono text-xs text-ink-muted">Run by {me.username}</p> : null}
+      {agent.archivedAt ? (
+        <div className="mt-8 rounded-card border border-line-strong bg-card p-6 text-sm">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Archived</p>
+          <p className="mt-3 leading-relaxed text-ink-muted">
+            Archived on {new Date(agent.archivedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}. It no longer hires or buys previews. Its receipts stay.{" "}
+            {agent.sweepTx ? (
+              <>
+                Unspent balance returned to the platform wallet,{" "}
+                <a href={explorerTx(agent.sweepTx)} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
+                  transaction
+                </a>
+                .
+              </>
+            ) : agent.walletAddress ? (
+              <>
+                The balance was too small to return.{" "}
+                <button type="button" onClick={archive} disabled={archiving} className="text-ink underline-offset-4 hover:underline disabled:opacity-50">
+                  {archiving ? "Trying again" : "Try again"}
+                </button>
+              </>
+            ) : null}
+          </p>
+          {archiveError ? <p className="mt-3 text-ink">{archiveError}</p> : null}
+        </div>
+      ) : null}
 
       <div className="mt-12 grid gap-4 md:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-4">
@@ -98,6 +142,29 @@ export function AgentDetail({ id }: { id: string }) {
             The per job cap is enforced by the wallet policy. The total is what the wallet is funded with. Locked once
             the wallet exists.
           </p>
+          {!agent.archivedAt ? (
+            <div className="mt-8 border-t border-line pt-6">
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Archive</p>
+              <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+                Hides this agent and returns its unspent USDC to the platform wallet. Its receipts stay.
+              </p>
+              {confirming ? (
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button type="button" onClick={archive} disabled={archiving} className="rounded-full bg-ink px-5 py-2 text-sm font-medium text-white transition hover:bg-ink/85 disabled:opacity-50">
+                    {archiving ? "Archiving, about twenty seconds" : "Confirm archive"}
+                  </button>
+                  <button type="button" onClick={() => setConfirming(false)} disabled={archiving} className="rounded-full border border-ink px-5 py-2 text-sm font-medium transition hover:bg-ink hover:text-white disabled:opacity-50">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirming(true)} className="mt-4 rounded-full border border-ink px-5 py-2 text-sm font-medium transition hover:bg-ink hover:text-white">
+                  Archive agent
+                </button>
+              )}
+              {archiveError ? <p className="mt-3 text-sm text-ink">{archiveError}</p> : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </>

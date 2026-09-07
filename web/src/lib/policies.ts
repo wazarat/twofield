@@ -11,9 +11,9 @@ import {
   toUsdc6,
   toWei,
 } from "@/lib/arc";
-import { authorizationContext, privy } from "@/lib/privy";
+import { authorizationContext, masterWallet, privy } from "@/lib/privy";
 
-export const BUYER_POLICY_VERSION = 4;
+export const BUYER_POLICY_VERSION = 5;
 export const PREVIEW_CAP_USDC = "0.01";
 
 const chain = { field_source: "ethereum_transaction" as const, field: "chain_id" as const, operator: "eq" as const, value: String(ARC_CHAIN_ID) };
@@ -37,7 +37,8 @@ function to(addresses: string[]) {
 }
 
 // A buyer wallet may register its identity, approve the escrow for at most its per job
-// cap, and call the escrow and reputation contracts. Nothing else is signable.
+// cap, call the escrow and reputation contracts, and return its balance to the master
+// wallet when archived. Nothing else is signable.
 export function buyerRules(agent: Agent) {
   const cap6 = toUsdc6(agent.maxBudgetPerJob).toString();
   const capWei = toWei(agent.maxBudgetPerJob).toString();
@@ -59,6 +60,10 @@ export function buyerRules(agent: Agent) {
     {
       name: "Escrow and reputation calls",
       conditions: [chain, to([AGENTIC_COMMERCE, REPUTATION_REGISTRY]), zeroValue],
+    },
+    {
+      name: "Return unspent balance to platform",
+      conditions: [chain, to([masterWallet().address])],
     },
   ];
   const transactionRules = groups.flatMap((g) =>

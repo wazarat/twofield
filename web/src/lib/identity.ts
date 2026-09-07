@@ -22,6 +22,7 @@ export const identityAbi = parseAbi([
 // agent owns its identity token. Gas comes from the wallet's funding buffer.
 export async function registerAgent(agent: Agent, base: string) {
   if (agent.status === "registered") throw new IdentityError("This agent is already registered", 409);
+  if (agent.archivedAt) throw new IdentityError("This agent is archived", 409);
   if (agent.status !== "wallet_ready" || !agent.walletId || !agent.walletAddress) {
     throw new IdentityError("Create the agent's wallet before registering its identity", 409);
   }

@@ -43,6 +43,7 @@ export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brie
     throw new JobError("This specialist is not available", 409);
   }
   if (buyer.status === "draft") throw new JobError("Create the buyer agent's wallet first", 409);
+  if (buyer.archivedAt) throw new JobError("This agent is archived and cannot hire", 409);
   const text = brief.trim();
   if (text.length < briefLimits.min) throw new JobError(`The brief needs at least ${briefLimits.min} characters`, 400);
   if (text.length > briefLimits.max) throw new JobError(`The brief must be ${briefLimits.max} characters or fewer`, 400);
