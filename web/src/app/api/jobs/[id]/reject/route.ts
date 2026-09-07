@@ -7,7 +7,7 @@ import { requirePlatformOwner } from "@/lib/platform";
 import { publicJob } from "@/lib/public-job";
 import { rejectJob } from "@/lib/settlement";
 import { appBaseUrl } from "@/lib/metadata";
-import { recordFeedback } from "@/lib/reputation";
+import { recordFeedback, recordVerdict } from "@/lib/reputation";
 import { getUser } from "@/lib/users";
 
 export const maxDuration = 120;
@@ -25,6 +25,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       updated = await recordFeedback(updated, appBaseUrl(request));
     } catch (err) {
       console.error("feedback after reject failed", { jobId: id, message: err instanceof Error ? err.message.split("\n")[0] : String(err) });
+    }
+    if (job.status === "disputed") {
+      // Best effort, the queue offers a retry through the verdict route.
+      try {
+        updated = await recordVerdict(updated, appBaseUrl(request));
+      } catch (err) {
+        console.error("verdict after reject failed", { jobId: id, message: err instanceof Error ? err.message.split("\n")[0] : String(err) });
+      }
     }
     const [buyer] = await db().select().from(agents).where(eq(agents.id, job.buyerAgentId)).limit(1);
     const [seller] = await db().select().from(agents).where(eq(agents.id, job.sellerAgentId)).limit(1);

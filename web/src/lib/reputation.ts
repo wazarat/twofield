@@ -14,6 +14,7 @@ export const FEEDBACK_TAG1 = "personal-brand";
 // are left out of summaries on purpose.
 export const FEEDBACK_TAG2 = "rating-5";
 export const ATTEST_TAG = "human-reviewed";
+export const VERDICT_TAG = "dispute-review";
 
 export const reputationAbi = parseAbi([
   "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
@@ -126,5 +127,43 @@ export async function attestSeller(seller: Agent) {
   });
   await confirmed(hash, "validationResponse");
   [current] = await db().update(agents).set({ attestedAt: new Date(), attestationTx: hash }).where(eq(agents.id, seller.id)).returning();
+  return current;
+}
+
+// Dispute verdict. The seller wallet asks the platform evaluator to validate the job, and
+// the evaluator answers 100 when the specialist was paid or 0 when the buyer was refunded.
+// Resumable, the request is saved before the response is sent.
+export async function recordVerdict(job: Job, base: string) {
+  if (job.validationTx) return job;
+  if (job.status !== "approved" && job.status !== "refunded") {
+    throw new ReputationError(`The verdict is recorded after settlement, this job is ${job.status}`, 409);
+  }
+  const [seller] = await db().select().from(agents).where(eq(agents.id, job.sellerAgentId)).limit(1);
+  if (!seller.onchainAgentId) throw new ReputationError("Specialist has no onchain identity", 409);
+  const evaluator = evaluatorWallet();
+  const jobUrl = `${base}/jobs/${job.id}`;
+  const requestHash = (job.validationRequestHash as Hex | null) ?? keccak256(toHex(`twofield dispute ${job.id}`));
+  let current = job;
+
+  if (!current.validationRequestHash) {
+    const hash = await walletClientFor(wallet(seller, "Specialist")).writeContract({
+      address: VALIDATION_REGISTRY,
+      abi: validationAbi,
+      functionName: "validationRequest",
+      args: [evaluator.address, BigInt(seller.onchainAgentId), jobUrl, requestHash],
+    });
+    await confirmed(hash, "validationRequest");
+    [current] = await db().update(jobs).set({ validationRequestHash: requestHash, updatedAt: new Date() }).where(eq(jobs.id, job.id)).returning();
+  }
+
+  const response = job.status === "approved" ? 100 : 0;
+  const hash = await walletClientFor(evaluator).writeContract({
+    address: VALIDATION_REGISTRY,
+    abi: validationAbi,
+    functionName: "validationResponse",
+    args: [requestHash, response, jobUrl, (job.deliverableHash as Hex | null) ?? zeroHash, VERDICT_TAG],
+  });
+  await confirmed(hash, "validationResponse");
+  [current] = await db().update(jobs).set({ validationTx: hash, updatedAt: new Date() }).where(eq(jobs.id, job.id)).returning();
   return current;
 }

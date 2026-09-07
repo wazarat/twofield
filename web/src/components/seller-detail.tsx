@@ -150,6 +150,10 @@ export function SellerDetail({ id }: { id: string }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
+                <dt>Disputes upheld for the buyer</dt>
+                <dd>{seller.disputesUpheld}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
                 <dt>Attestation</dt>
                 <dd>
                   {seller.attestationTx ? (

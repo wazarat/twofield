@@ -1,8 +1,9 @@
 import type { Agent } from "@/db/schema";
 
 // The subset of a seller row that is safe to show to anyone.
-export function publicSeller(agent: Agent) {
+export function publicSeller(agent: Agent, extra: { disputesUpheld?: number } = {}) {
   return {
+    disputesUpheld: extra.disputesUpheld ?? 0,
     id: agent.id,
     name: agent.name,
     tagline: agent.tagline ?? "",

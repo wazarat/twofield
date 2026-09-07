@@ -88,7 +88,11 @@ export function JobDetail({ id }: { id: string }) {
     { label: "Escrow funded", tx: job.fundTx },
     { label: "Work submitted", tx: job.submitTx, note: job.status === "generating" || busy ? "in progress" : undefined },
     {
-      label: job.refundTx ? "Rejected, buyer refunded" : job.status === "disputed" ? "In dispute, escrow held" : "Approved, specialist paid",
+      label: job.refundTx
+        ? job.rating !== null ? "Dispute settled, buyer refunded" : "Rejected, buyer refunded"
+        : job.status === "disputed"
+          ? "In dispute, escrow held"
+          : job.rating !== null && job.rating < 3 ? "Dispute settled, specialist paid" : "Approved, specialist paid",
       tx: job.settleTx ?? job.refundTx,
       note: job.status === "submitted" ? "awaiting your rating" : job.status === "disputed" ? "twofield reviewing" : undefined,
     },
@@ -274,6 +278,16 @@ export function JobDetail({ id }: { id: string }) {
                 <div className="flex justify-between gap-4">
                   <dt>Review note</dt>
                   <dd className="text-right">{job.reviewNote}</dd>
+                </div>
+              ) : null}
+              {job.validationTx ? (
+                <div className="flex justify-between gap-4">
+                  <dt>Verdict</dt>
+                  <dd>
+                    <a href={explorerTx(job.validationTx)} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
+                      {job.settleTx ? "for the specialist" : "for the buyer"}
+                    </a>
+                  </dd>
                 </div>
               ) : null}
               {job.rating !== null ? (

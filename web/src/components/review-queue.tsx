@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatUsdc } from "@/lib/agents";
 import { api } from "@/lib/api";
+import { explorerTx } from "@/lib/arc";
+import { formatBytes } from "@/lib/context";
 import { buyerLabel, type PublicJob } from "@/lib/public-job";
 import { Deliverable } from "@/components/deliverable";
 
@@ -47,6 +49,19 @@ export function ReviewQueue() {
     }
   }
 
+  async function verdict(job: PublicJob) {
+    setBusyId(job.id);
+    setError(null);
+    try {
+      const d = await api<{ job: PublicJob }>(`/api/jobs/${job.id}/verdict`, { method: "POST" });
+      setList((prev) => (prev ?? []).map((j) => (j.id === job.id ? d.job : j)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verdict failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (!ready) return <div className="h-48 animate-pulse rounded-panel border border-line bg-card/60" aria-hidden="true" />;
   if (!isOwner) {
     return (
@@ -58,8 +73,8 @@ export function ReviewQueue() {
   if (error && !list) return <p className="text-sm">{error}</p>;
   if (!list) return <div className="h-48 animate-pulse rounded-panel border border-line bg-card/60" aria-hidden="true" />;
 
-  const waiting = list.filter((j) => j.status === "disputed");
-  const working = list.filter((j) => j.status !== "disputed");
+  const waiting = list.filter((j) => j.status === "disputed" || (j.rating !== null && (j.status === "approved" || j.status === "refunded")));
+  const working = list.filter((j) => !waiting.includes(j));
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,38 +103,82 @@ export function ReviewQueue() {
           <details className="mt-6">
             <summary className="cursor-pointer text-sm font-medium">Brief</summary>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{job.brief}</p>
+            {job.context ? <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{job.context}</p> : null}
           </details>
+          {job.files?.length ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium">Files, {job.files.length}</summary>
+              <ul className="mt-2 divide-y divide-line rounded-card border border-line">
+                {job.files.map((f) => (
+                  <li key={f.id}>
+                    <details>
+                      <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 font-mono text-xs">
+                        <span className="truncate">{f.name}</span>
+                        <span className="shrink-0 text-ink-muted">{formatBytes(f.bytes)}</span>
+                      </summary>
+                      <pre className="max-h-72 overflow-auto border-t border-line bg-bg px-4 py-3 font-mono text-xs leading-relaxed text-ink-muted">{f.content}</pre>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           <div className="mt-6 max-h-[32rem] overflow-y-auto rounded-card border border-line p-6">
             {job.deliverable ? <Deliverable text={job.deliverable} /> : <p className="text-sm text-ink-muted">No deliverable stored.</p>}
           </div>
-          <label className="mt-6 block text-sm font-medium">
-            Review note, optional
-            <input
-              className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm outline-none focus:border-ink"
-              value={notes[job.id] ?? ""}
-              onChange={(e) => setNotes((n) => ({ ...n, [job.id]: e.target.value }))}
-              maxLength={500}
-              placeholder="Why you approved or rejected, kept with the receipt"
-            />
-          </label>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={busyId === job.id}
-              onClick={() => decide(job, "approve")}
-              className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-ink/85 disabled:opacity-50"
-            >
-              {busyId === job.id ? "Settling" : "Approve and pay the specialist"}
-            </button>
-            <button
-              type="button"
-              disabled={busyId === job.id}
-              onClick={() => decide(job, "reject")}
-              className="rounded-full border border-ink px-6 py-3 text-sm font-medium transition hover:bg-ink hover:text-white disabled:opacity-50"
-            >
-              Reject and refund the buyer
-            </button>
-          </div>
+          {job.status === "disputed" ? (
+            <>
+              <label className="mt-6 block text-sm font-medium">
+                Review note, optional
+                <input
+                  className="mt-2 w-full rounded-xl border border-line bg-bg px-4 py-3 text-sm outline-none focus:border-ink"
+                  value={notes[job.id] ?? ""}
+                  onChange={(e) => setNotes((n) => ({ ...n, [job.id]: e.target.value }))}
+                  maxLength={500}
+                  placeholder="Why the work did or did not meet the brief, kept with the receipt"
+                />
+              </label>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={busyId === job.id}
+                  onClick={() => decide(job, "approve")}
+                  className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-ink/85 disabled:opacity-50"
+                >
+                  {busyId === job.id ? "Settling, about a minute" : "Pay the specialist"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === job.id}
+                  onClick={() => decide(job, "reject")}
+                  className="rounded-full border border-ink px-6 py-3 text-sm font-medium transition hover:bg-ink hover:text-white disabled:opacity-50"
+                >
+                  Refund the buyer
+                </button>
+              </div>
+              <p className="mt-4 font-mono text-xs text-ink-muted">
+                The verdict is written to the ERC-8004 Validation Registry under the identity of the specialist.
+              </p>
+            </>
+          ) : (
+            <div className="mt-6 rounded-card border border-line p-4 text-sm">
+              <p>
+                {job.status === "approved" ? "Specialist paid." : "Buyer refunded."}{" "}
+                {job.validationTx ? (
+                  <a href={explorerTx(job.validationTx)} target="_blank" rel="noreferrer" className="text-ink underline-offset-4 hover:underline">
+                    Verdict on the Validation Registry
+                  </a>
+                ) : (
+                  <>
+                    The verdict did not reach the Validation Registry yet.{" "}
+                    <button type="button" disabled={busyId === job.id} onClick={() => verdict(job)} className="text-ink underline-offset-4 hover:underline disabled:opacity-50">
+                      {busyId === job.id ? "Writing" : "Write it now"}
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+          )}
         </div>
       ))}
       {working.length ? (

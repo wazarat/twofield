@@ -104,6 +104,9 @@ export const jobs = pgTable("jobs", {
   // The buyer's score, 1 to 5. Three and up settles at once, one or two holds escrow.
   rating: integer("rating"),
   ratedAt: timestamp("rated_at", { withTimezone: true }),
+  // Platform verdict on a disputed job, written to the ValidationRegistry.
+  validationRequestHash: text("validation_request_hash"),
+  validationTx: text("validation_tx"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

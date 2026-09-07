@@ -11,5 +11,5 @@ export async function GET(request: Request) {
     ? and(eq(agents.kind, "seller"), eq(agents.categorySlug, category))
     : eq(agents.kind, "seller");
   const rows = await db().select().from(agents).where(where).orderBy(asc(agents.priceUsdc), asc(agents.name));
-  return NextResponse.json({ sellers: rows.map(publicSeller) });
+  return NextResponse.json({ sellers: rows.map((row) => publicSeller(row)) });
 }
