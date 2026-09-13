@@ -58,6 +58,25 @@ export const agents = pgTable("agents", {
 export type Agent = typeof agents.$inferSelect;
 export type NewAgent = typeof agents.$inferInsert;
 
+// Opaque credentials connect an external MCP client to one buyer agent.
+// The raw token is never stored. It is shown only when it is created.
+export const mcpCredentials = pgTable("mcp_credentials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tokenHash: text("token_hash").notNull().unique(),
+  tokenPrefix: text("token_prefix").notNull(),
+  ownerId: text("owner_id").notNull(),
+  agentId: uuid("agent_id")
+    .notNull()
+    .references(() => agents.id),
+  scopes: text("scopes").notNull().default("mcp:identity"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type McpCredential = typeof mcpCredentials.$inferSelect;
+
 export const jobStatuses = [
   "pending",
   "created",
