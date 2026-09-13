@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@neondatabase/serverless": "^1.1.0",
     "@privy-io/node": "^0.34.0",
     "@privy-io/react-auth": "^3.40.0",
@@ -28,7 +29,8 @@
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "viem": "2.56.0"
+    "viem": "2.56.0",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@next/env": "^16.3.4",
