@@ -45,7 +45,7 @@ export async function countJobsInWindow(buyerAgentId: string, period: JobPeriod)
 // Validates the hire and inserts the pending row. No chain calls here.
 export async function openJob(ownerId: string, buyer: Agent, seller: Agent, brief: string, context = "", files: ContextFile[] = []) {
   if (buyer.ownerId !== ownerId || buyer.kind !== "buyer") throw new JobError("Buyer agent not found", 404);
-  if (seller.kind !== "seller" || seller.status !== "registered" || !seller.priceUsdc) {
+  if (seller.kind !== "seller" || seller.status !== "registered" || !seller.priceUsdc || seller.archivedAt) {
     throw new JobError("This specialist is not available", 409);
   }
   if (buyer.status === "draft") throw new JobError("Create the buyer agent's wallet first", 409);

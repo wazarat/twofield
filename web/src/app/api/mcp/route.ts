@@ -6,8 +6,9 @@ import { db } from "@/db";
 import { agents, jobs, type Agent } from "@/db/schema";
 import { assertNameFree } from "@/lib/agent-updates";
 import { agentLimits, validateAgentInput } from "@/lib/agents";
+import { contextLimits, validateContext } from "@/lib/context";
 import { AppError } from "@/lib/errors";
-import { loadJobFiles } from "@/lib/jobs";
+import { briefLimits, fundJob, loadJobFiles, openJob } from "@/lib/jobs";
 import { introspectMcpToken, type McpIdentity } from "@/lib/mcp-auth";
 import { appBaseUrl } from "@/lib/metadata";
 import { publicJob } from "@/lib/public-job";
@@ -42,6 +43,64 @@ async function sellerById(id: string) {
     .limit(1);
   if (!row) throw new AppError("Specialist not found", 404);
   return row;
+}
+
+// Discovery and hiring share this query so a specialist cannot be hired unless
+// it would also appear in list_specialists at that moment.
+async function availableSpecialists(category?: string) {
+  return db()
+    .select()
+    .from(agents)
+    .where(
+      and(
+        eq(agents.kind, "seller"),
+        eq(agents.status, "registered"),
+        isNotNull(agents.priceUsdc),
+        isNull(agents.archivedAt),
+        category ? eq(agents.categorySlug, category) : undefined,
+      ),
+    )
+    .orderBy(asc(agents.priceUsdc), asc(agents.name));
+}
+
+const ignoredMatchWords = new Set(["a", "an", "and", "for", "in", "of", "on", "or", "the", "to", "with"]);
+
+function matchWords(value: string) {
+  return new Set(
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .split(" ")
+      .filter((word) => word.length > 1 && !ignoredMatchWords.has(word)),
+  );
+}
+
+function specialistMatchScore(seller: Agent, intent: string) {
+  const wanted = matchWords(intent);
+  if (!wanted.size) return 0;
+  const fields: Array<[string, number]> = [
+    [seller.name, 8],
+    [seller.categorySlug ?? "", 5],
+    [seller.tagline ?? "", 3],
+    [seller.description, 2],
+    [seller.persona ?? "", 1],
+  ];
+  let score = 0;
+  for (const [text, weight] of fields) {
+    const words = matchWords(text);
+    for (const word of wanted) {
+      const matches = [...words].some((candidate) => candidate === word || (candidate.length >= 5 && word.length >= 5 && candidate.slice(0, 5) === word.slice(0, 5)));
+      if (matches) score += weight;
+    }
+  }
+  return score;
+}
+
+function rankedSpecialists(rows: Agent[], intent?: string) {
+  if (!intent?.trim()) return rows.map((specialist) => ({ specialist, matchScore: 0 }));
+  return rows
+    .map((specialist) => ({ specialist, matchScore: specialistMatchScore(specialist, intent) }))
+    .sort((a, b) => b.matchScore - a.matchScore || Number(a.specialist.priceUsdc) - Number(b.specialist.priceUsdc) || a.specialist.name.localeCompare(b.specialist.name));
 }
 
 // A fresh server per request, bound to the agent the token belongs to.
@@ -141,14 +200,138 @@ const handler = createMcpHandler(async (ctx) => {
   server.registerTool(
     "list_specialists",
     {
-      description: "Specialists for hire on twofield, cheapest first. Filter by category slug, for example personal-brand.",
-      inputSchema: z.object({ category: z.string().optional() }),
+      description:
+        "List specialists that are currently available to hire and this account's agents that can hire them. Optionally rank specialists by the work the user needs. Call this before hire_specialist.",
+      inputSchema: z.object({
+        intent: z.string().trim().optional().describe("What the user needs help with; used to rank the closest specialist first"),
+        category: z.string().trim().optional().describe("Optional category slug, for example personal-brand"),
+      }),
     },
-    async ({ category }) => {
+    async ({ intent, category }) => {
       try {
-        const where = category ? and(eq(agents.kind, "seller"), eq(agents.categorySlug, category)) : eq(agents.kind, "seller");
-        const rows = await db().select().from(agents).where(where).orderBy(asc(agents.priceUsdc), asc(agents.name));
-        return ok({ specialists: rows.map((row) => ({ ...publicSeller(row), url: `${base}/sellers/${row.id}` })) });
+        const [specialistRows, buyerRows] = await Promise.all([
+          availableSpecialists(category),
+          db()
+            .select()
+            .from(agents)
+            .where(
+              and(
+                eq(agents.ownerId, identity.ownerId),
+                eq(agents.kind, "buyer"),
+                isNull(agents.archivedAt),
+                isNotNull(agents.walletAddress),
+              ),
+            )
+            .orderBy(desc(agents.createdAt)),
+        ]);
+        const ranked = rankedSpecialists(specialistRows, intent);
+        return ok({
+          hiringAgents: buyerRows.map((buyer) => ({
+            id: buyer.id,
+            name: buyer.name,
+            description: buyer.description,
+            maxBudgetPerJob: buyer.maxBudgetPerJob,
+            maxJobs: buyer.maxJobs,
+            jobsPeriod: buyer.jobsPeriod,
+            status: buyer.status,
+            url: `${base}/agents/${buyer.id}`,
+          })),
+          specialists: ranked.map(({ specialist, matchScore }) => ({
+            ...publicSeller(specialist),
+            ...(intent ? { matchScore } : {}),
+            url: `${base}/sellers/${specialist.id}`,
+          })),
+        });
+      } catch (err) {
+        return failed(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "hire_specialist",
+    {
+      description:
+        "Hire and fund an available twofield specialist. Choose an exact specialist by id or name, or provide an intent so the closest affordable available specialist is selected. Uses the same validation and escrow flow as the web hire form.",
+      inputSchema: z.object({
+        buyerAgentId: z.string().uuid().describe("Which of the user's configured agents is hiring; use an id from list_specialists"),
+        brief: z
+          .string()
+          .trim()
+          .min(briefLimits.min)
+          .max(briefLimits.max)
+          .describe("Brief for the specialist"),
+        context: z.string().max(contextLimits.contextMax).default("").describe("Optional context for the specialist"),
+        files: z
+          .array(
+            z.object({
+              name: z.string().trim().min(1).max(contextLimits.nameMax),
+              content: z.string().min(1),
+            }),
+          )
+          .max(contextLimits.maxFiles)
+          .default([])
+          .describe("Optional text files, each supplied as a file name and text content"),
+        specialistId: z.string().uuid().optional().describe("Exact available specialist id from list_specialists"),
+        specialistName: z.string().trim().min(1).optional().describe("Exact specialist name, matched case-insensitively"),
+        intent: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe("The kind of specialist needed; when no exact specialist is chosen, the closest match is selected"),
+      }),
+    },
+    async ({ buyerAgentId, brief, context, files, specialistId, specialistName, intent }) => {
+      try {
+        if (specialistId && specialistName) throw new AppError("Choose a specialist by id or by name, not both", 400);
+
+        const [buyer] = await db()
+          .select()
+          .from(agents)
+          .where(and(eq(agents.id, buyerAgentId), eq(agents.ownerId, identity.ownerId), eq(agents.kind, "buyer")))
+          .limit(1);
+        if (!buyer) throw new AppError("Buyer agent not found", 404);
+
+        const available = await availableSpecialists();
+        let selected: Agent | undefined;
+        let selectedBy: "id" | "name" | "intent" = "intent";
+
+        if (specialistId) {
+          selected = available.find((candidate) => candidate.id === specialistId);
+          selectedBy = "id";
+          if (!selected) throw new AppError("The requested specialist is not currently available", 409);
+        } else if (specialistName) {
+          const exactName = specialistName.toLocaleLowerCase();
+          selected = available.find((candidate) => candidate.name.toLocaleLowerCase() === exactName);
+          selectedBy = "name";
+          if (!selected) throw new AppError(`No available specialist is named ${specialistName}`, 409);
+        } else {
+          const affordable = available.filter((candidate) => Number(candidate.priceUsdc) <= Number(buyer.maxBudgetPerJob));
+          if (!affordable.length) throw new AppError("No available specialist is within this agent's per-job budget", 409);
+          const matchIntent = intent ?? brief;
+          const [closest] = rankedSpecialists(affordable, matchIntent);
+          if (!closest || (affordable.length > 1 && closest.matchScore === 0)) {
+            throw new AppError("Could not confidently match the request to an available specialist. Use list_specialists, then provide specialistId or specialistName.", 400);
+          }
+          selected = closest.specialist;
+        }
+        if (!selected) throw new AppError("No available specialist matched this request", 409);
+
+        // Revalidate optional context and files exactly as the web form/API do.
+        const attached = validateContext({ context, files });
+        if (!attached.ok) throw new AppError(attached.error, 400);
+
+        // openJob repeats the availability check immediately before inserting the job,
+        // then enforces ownership, wallet, budget, rate and balance constraints.
+        const pending = await openJob(identity.ownerId, buyer, selected, brief, attached.context, attached.files);
+        const funded = await fundJob(pending);
+        const savedFiles = await loadJobFiles(funded.id);
+        return ok({
+          selectedBy,
+          specialist: { ...publicSeller(selected), url: `${base}/sellers/${selected.id}` },
+          job: { ...publicJob(funded, buyer, selected, savedFiles, username ? { username } : null), url: `${base}/jobs/${funded.id}` },
+        });
       } catch (err) {
         return failed(err);
       }
