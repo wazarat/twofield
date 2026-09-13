@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { db } from "@/db";
 import { agents, jobs, type Agent } from "@/db/schema";
+import { assertNameFree } from "@/lib/agent-updates";
+import { agentLimits, validateAgentInput } from "@/lib/agents";
 import { AppError } from "@/lib/errors";
 import { loadJobFiles } from "@/lib/jobs";
 import { introspectMcpToken, type McpIdentity } from "@/lib/mcp-auth";
@@ -73,6 +75,67 @@ const handler = createMcpHandler(async (ctx) => {
         },
         token: { credentialId: identity.credentialId, scopes: identity.scopes, expiresAt: identity.expiresAt },
       }),
+  );
+
+  server.registerTool(
+    "create_agent",
+    {
+      description:
+        "Create a new twofield buyer agent for this account. The agent starts as a draft; create its wallet from the agent page when it is ready.",
+      inputSchema: z.object({
+        name: z.string().trim().min(1, "Name is required").max(agentLimits.nameMax).describe("The agent name"),
+        description: z
+          .string()
+          .trim()
+          .min(1, "What it works on is required")
+          .max(agentLimits.descriptionMax)
+          .describe("What the agent works on"),
+        maxBudgetPerJob: z
+          .number()
+          .min(agentLimits.budgetMin)
+          .max(agentLimits.budgetMax)
+          .default(2)
+          .describe("Maximum budget per job in USDC"),
+        maxJobs: z
+          .number()
+          .int()
+          .min(agentLimits.jobsMin)
+          .max(agentLimits.jobsMax)
+          .default(3)
+          .describe("Maximum jobs allowed during each period"),
+        jobsPeriod: z.enum(["hour", "day", "week"]).default("week").describe("Window used for the maximum job count"),
+        maxTotalBudget: z
+          .number()
+          .min(agentLimits.budgetMin)
+          .max(agentLimits.budgetMax)
+          .default(5)
+          .describe("Maximum total budget in USDC"),
+      }),
+    },
+    async (input) => {
+      try {
+        const parsed = validateAgentInput(input);
+        if (!parsed.ok) throw new AppError(parsed.error, 400);
+        await assertNameFree(identity.ownerId, parsed.value.name);
+
+        const [created] = await db()
+          .insert(agents)
+          .values({
+            ownerId: identity.ownerId,
+            name: parsed.value.name,
+            description: parsed.value.description,
+            maxBudgetPerJob: parsed.value.maxBudgetPerJob.toString(),
+            maxJobs: parsed.value.maxJobs,
+            jobsPeriod: parsed.value.jobsPeriod,
+            maxTotalBudget: parsed.value.maxTotalBudget.toString(),
+          })
+          .returning();
+
+        return ok({ agent: { ...created, url: `${base}/agents/${created.id}` } });
+      } catch (err) {
+        return failed(err);
+      }
+    },
   );
 
   server.registerTool(
