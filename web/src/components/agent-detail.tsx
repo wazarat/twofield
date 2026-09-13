@@ -10,6 +10,7 @@ import { StatusPill } from "@/components/status-pill";
 import { WalletPanel } from "@/components/wallet-panel";
 import { IdentityPanel } from "@/components/identity-panel";
 import { AgentJobs } from "@/components/agent-jobs";
+import { McpPanel } from "@/components/mcp-panel";
 import { useCurrentUser } from "@/components/user-context";
 import { EditAgentForm } from "@/components/edit-agent-form";
 
@@ -129,6 +130,7 @@ export function AgentDetail({ id }: { id: string }) {
           </ol>
         </div>
         {agent.status !== "draft" ? <AgentJobs agentId={agent.id} /> : null}
+        {agent.status !== "draft" && !agent.archivedAt ? <McpPanel agent={agent} /> : null}
         </div>
         <div className="rounded-panel border border-line bg-card p-8">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Budgets</p>

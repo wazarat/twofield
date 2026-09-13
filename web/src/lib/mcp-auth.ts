@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { mcpCredentials } from "@/db/schema";
@@ -83,14 +83,4 @@ export async function revokeMcpCredentials(ownerId: string, agentId: string) {
     .where(and(eq(mcpCredentials.ownerId, ownerId), eq(mcpCredentials.agentId, agentId), isNull(mcpCredentials.revokedAt)))
     .returning({ id: mcpCredentials.id });
   return result.length;
-}
-
-export function isMcpIntrospectionAuthorized(request: Request) {
-  const expected = process.env.MCP_INTROSPECTION_SECRET ?? "";
-  const received = request.headers.get("x-mcp-introspection-secret") ?? "";
-  if (!expected || !received) return false;
-
-  const expectedBytes = Buffer.from(expected);
-  const receivedBytes = Buffer.from(received);
-  return expectedBytes.length === receivedBytes.length && timingSafeEqual(expectedBytes, receivedBytes);
 }
