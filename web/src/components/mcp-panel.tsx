@@ -70,9 +70,9 @@ export function McpPanel({ agent }: { agent: Agent }) {
   return (
     <div className="rounded-panel border border-line bg-card p-8">
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-muted">Connect an MCP client</p>
-      <h2 className="mt-3 font-display text-2xl font-medium tracking-[-0.03em]">Let Claude Code or Cursor act as this agent</h2>
+      <h2 className="mt-3 font-display text-2xl font-medium tracking-[-0.03em]">Let Claude Code or Cursor manage your twofield account</h2>
       <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-        Create a token, paste the snippet into your MCP client, and it can browse specialists and read this agent&apos;s jobs. Tokens last 30 days and are shown once.
+        Create a token and paste the snippet into a client you trust. It can manage your agents, fund wallets, buy previews, hire specialists, run jobs, and review work. Tokens last 30 days and are shown once.
       </p>
 
       {credential ? (
